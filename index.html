@@ -2125,7 +2125,7 @@ function initTimeline() {
   const data = cachedData[currentTimeRange];
   if (!data || !data.recent.length) {
     document.getElementById('tl-chart-wrap').innerHTML =
-      '<div class="tl-no-data">Yeterli dinleme verisi bulunamadı. Spotify'ı daha fazla kullandıkça veriler dolacak.</div>';
+      '<div class="tl-no-data">Yeterli dinleme verisi bulunamadi. Spotify kullanimi arttikca veriler dolacak.</div>';
     return;
   }
 
@@ -2294,7 +2294,8 @@ async function renderTimelineClaude(scored, artists) {
 
   const genreList = [...new Set((artists || []).flatMap(a => a.genres || []))].slice(0, 6).join(', ');
 
-  const prompt = `Bir kullanıcının ${currentPeriod === 'weekly' ? 'günlük' : currentPeriod === 'monthly' ? 'haftalık' : 'aylık'} müzik dinleme ruh hali verileri:
+  const periodLabel = currentPeriod === 'weekly' ? 'gunluk' : currentPeriod === 'monthly' ? 'haftalik' : 'aylik';
+  const prompt = `Bir kullanicinin ${periodLabel} muzik dinleme ruh hali verileri:
 
 ${trendData}
 
@@ -2304,7 +2305,7 @@ Bu zaman serisini analiz et. Trendleri, değişimleri ve olası sebepleri yoruml
 
 JSON formatında döndür, başka hiçbir şey yazma:
 {
-  "trend": "(Yükseliyor / Düşüyor / Stabil / Dalgalı)",
+  "trend": "(Yukseliyor / Dususyor / Stabil / Dalgali)",
   "trend_emoji": "(tek emoji)",
   "ozet": "(3-4 cümle: zaman içindeki ruh hali değişimini ve olası yorumunu anlat)",
   "en_ilginc": "(en dikkat çekici değişim veya nokta hakkında 1-2 cümle)",
