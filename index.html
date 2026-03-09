@@ -1260,9 +1260,9 @@ function setTimelinePeriod(period, btn) {
   document.querySelectorAll('.tl-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   const descs = {
-    weekly: 'Son 7 günün ruh hali değişimi',
-    monthly: 'Son 4 haftanın ruh hali değişimi',
-    yearly: 'Son 12 ayın ruh hali değişimi'
+    weekly: 'Son 7 gunun ruh hali degisimi',
+    monthly: 'Son 4 haftalik ruh hali degisimi',
+    yearly: 'Son 12 aylik ruh hali degisimi'
   };
   document.getElementById('tl-desc').textContent = descs[period];
   timelineInitialized = false;
@@ -1283,7 +1283,7 @@ function initTimeline() {
   const groups = groupByPeriod(data.recent, currentPeriod);
   if (Object.keys(groups).length < 2) {
     document.getElementById('tl-chart-wrap').innerHTML =
-      '<div class="tl-no-data">Bu görünüm için yeterli veri yok. Haftalık seçimini dene.</div>';
+      '<div class="tl-no-data">Bu gorunum icin yeterli veri yok. Haftalik secimini dene.</div>';
     return;
   }
 
@@ -1305,7 +1305,7 @@ function groupByPeriod(recent, period) {
       // Group by day, last 7 days
       const diffDays = Math.floor((now - d) / 86400000);
       if (diffDays > 6) return;
-      const dayNames = ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
+      const dayNames = ['Paz','Pzt','Sal','Car','Per','Cum','Cmt'];
       label = dayNames[d.getDay()] + ' ' + d.getDate();
       key = d.toISOString().slice(0, 10);
     } else if (period === 'monthly') {
@@ -1314,12 +1314,12 @@ function groupByPeriod(recent, period) {
       if (diffDays > 27) return;
       const weekNum = Math.floor(diffDays / 7);
       key = 'week_' + weekNum;
-      label = weekNum === 0 ? 'Bu Hafta' : weekNum + '. Hafta Önce';
+      label = weekNum === 0 ? 'Bu Hafta' : weekNum + '. Hafta Once';
     } else {
       // Group by month, last 12 months
       const diffMonths = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
       if (diffMonths > 11) return;
-      const monthNames = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+      const monthNames = ['Oca','Sub','Mar','Nis','May','Haz','Tem','Agu','Eyl','Eki','Kas','Ara'];
       key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
       label = monthNames[d.getMonth()] + ' ' + d.getFullYear();
     }
@@ -1479,7 +1479,7 @@ JSON formatında döndür, başka hiçbir şey yazma:
 
     const text = data.content?.[0]?.text || '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('JSON bulunamadı');
+    if (!jsonMatch) throw new Error('JSON bulunamadi');
     const r = JSON.parse(jsonMatch[0]);
 
     el.innerHTML = `
@@ -1614,7 +1614,7 @@ async function shufflePlaylist(tracksArg, artistsArg) {
   const claudeEl = document.getElementById('playlist-claude');
   const nameEl = document.getElementById('playlist-name');
 
-  if (trackEl) trackEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>Benzer sarkiler aranıyor...</span></div>';
+  if (trackEl) trackEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>Benzer sarkiler araniyor...</span></div>';
   if (nameEl) nameEl.textContent = '...';
   if (claudeEl) claudeEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>Claude yorumluyor...</span></div>';
 
