@@ -1790,9 +1790,21 @@ async function runSentimentAnalysis(lyrics, title, artist) {
     });
 
     const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
     const text = data.content?.[0]?.text || '';
-    const clean = text.replace(/```json|```/g, '').trim();
-    const result = JSON.parse(clean);
+    if (!text) throw new Error('Claude boş yanıt döndürdü');
+
+    const clean = text
+      .replace(/```json/g, '')
+      .replace(/```/g, '')
+      .trim();
+
+    // JSON bloğunu bul
+    const jsonMatch = clean.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('JSON bulunamadı: ' + clean.slice(0, 100));
+
+    const result = JSON.parse(jsonMatch[0]);
 
     const dims = result.dimensions;
     const dimColors = {
