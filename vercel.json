@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/api/config", "destination": "/api/config" },
+    { "source": "/api/claude", "destination": "/api/claude" },
+    { "source": "/api/lyrics", "destination": "/api/lyrics" },
+    { "source": "/app.js", "destination": "/app.js" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
