@@ -1709,9 +1709,9 @@ async function analyzeLyrics(trackIdx) {
   // Fetch lyrics
   let lyrics = null;
   try {
-    const cleanArtist = encodeURIComponent(artist.replace(/[^\w\s]/gi, '').trim());
-    const cleanTitle = encodeURIComponent(title.replace(/\(.*?\)/g, '').replace(/[^\w\s]/gi, '').trim());
-    const res = await fetch(`https://api.lyrics.ovh/v1/${cleanArtist}/${cleanTitle}`);
+    const cleanArtist = artist.replace(/[^\w\s]/gi, '').trim();
+    const cleanTitle = title.replace(/\(.*?\)/g, '').replace(/[^\w\s]/gi, '').trim();
+    const res = await fetch(`/api/lyrics?artist=${encodeURIComponent(cleanArtist)}&title=${encodeURIComponent(cleanTitle)}`);
     const data2 = await res.json();
     lyrics = data2.lyrics || null;
   } catch(e) {
