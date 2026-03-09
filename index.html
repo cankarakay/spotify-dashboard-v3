@@ -622,9 +622,13 @@
     background: var(--surface2);
     border: 1px solid var(--surface3);
     border-radius: 100px;
-    padding: 0.4rem 1rem;
-    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.75rem;
     transition: all 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
   }
 
   .genre-tag.big {
@@ -851,7 +855,7 @@
     align-items: start;
   }
 
-  @media (max-width: 700px) {
+  @media (max-width: 900px) {
     .sentiment-result-inner { grid-template-columns: 1fr; }
   }
 
@@ -1848,9 +1852,9 @@ async function runSentimentAnalysis(lyrics, title, artist) {
                 <div class="mood-bar-fill" style="width:${v}%;background:${dimColors[k]||'#1DB954'}"></div>
               </div>
             </div>`).join('')}
-          <div style="margin-top:0.8rem">
+          <div style="margin-top:0.8rem;display:flex;flex-wrap:wrap;gap:0.4rem">
             ${(result.anahtar_temalar||[]).map(t =>
-              `<span class="genre-tag big" style="margin:0.2rem">${t}</span>`
+              `<span class="genre-tag big">${t}</span>`
             ).join('')}
           </div>
         </div>
@@ -1947,9 +1951,9 @@ Bu müzik listesine bakarak kullanıcının genel ruh halini, müzik kişiliğin
                 <div class="mood-bar-fill" style="width:${v}%;background:${dimColors[k]||'#1DB954'}"></div>
               </div>
             </div>`).join('')}
-          <div style="margin-top:0.8rem">
+          <div style="margin-top:0.8rem;display:flex;flex-wrap:wrap;gap:0.4rem">
             ${(r.anahtar_temalar||[]).map(t =>
-              `<span class="genre-tag big" style="margin:0.2rem">${t}</span>`
+              `<span class="genre-tag big">${t}</span>`
             ).join('')}
           </div>
         </div>
