@@ -1067,8 +1067,8 @@
     <button class="nav-tab" onclick="showScreen('artists')">Sanatçılar</button>
     <button class="nav-tab" onclick="showScreen('mood')">Ruh Hali</button>
     <button class="nav-tab" onclick="showScreen('recent')">Son Dinlenenler</button>
+    <button class="nav-tab" onclick="showScreen('playlist')">🎲 Playlist</button>
     <button class="nav-tab" onclick="showScreen('lyrics')">🔬 Söz Analizi</button>
-    <button class="nav-tab" onclick="showScreen('timeline')">📈 Zaman Serisi</button>
   </div>
 
   <div class="time-controls">
@@ -1126,6 +1126,20 @@
         <div class="panel-title">🧠 Genel Ruh Hali Analizi — Claude</div>
         <div id="overall-sentiment-result">
           <div class="loading"><div class="spinner"></div><span>Claude analiz ediyor...</span></div>
+        </div>
+      </div>
+
+      <div class="panel panel-full fade-up" style="animation-delay:0.5s">
+        <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>🕐 Saatlik Ruh Hali — Bugün</span>
+          <span id="tl-track-count" style="font-size:0.75rem;color:var(--muted)"></span>
+        </div>
+        <div id="tl-chart-wrap">
+          <div class="loading"><div class="spinner"></div><span>Veriler hesaplanıyor...</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">
+          <div id="tl-best"></div>
+          <div id="tl-worst"></div>
         </div>
       </div>
     </section>
@@ -1203,903 +1217,40 @@
     </section>
 
 
-    <!-- TIMELINE -->
-    <section class="screen" id="screen-timeline">
 
-      <div class="timeline-controls fade-up">
-        <div class="tl-period-btns">
-          <button class="tl-btn active" onclick="setTimelinePeriod('weekly', this)">Haftalık</button>
-          <button class="tl-btn" onclick="setTimelinePeriod('monthly', this)">Aylık</button>
-          <button class="tl-btn" onclick="setTimelinePeriod('yearly', this)">Yıllık</button>
-        </div>
-        <p class="tl-desc" id="tl-desc">Son 7 günün ruh hali değişimi</p>
-      </div>
-
-      <div class="panel fade-up" style="margin-bottom:1.5rem">
-        <div class="panel-title">📊 Ruh Hali Grafiği</div>
-        <div id="tl-chart-wrap">
-          <div class="loading"><div class="spinner"></div><span>Veriler hesaplanıyor...</span></div>
+    <!-- PLAYLIST -->
+    <section class="screen" id="screen-playlist">
+      <div class="fade-up" style="margin-bottom:1.5rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+          <div>
+            <h2 style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800">🎲 Shuffled Playlist</h2>
+            <p style="color:var(--muted);font-size:0.85rem;margin-top:0.3rem">Dinlediklerine benzer kesfedilmemis sarkiler — her seferinde farkli</p>
+          </div>
+          <div style="display:flex;gap:0.8rem;flex-wrap:wrap">
+            <button class="login-btn" style="padding:0.7rem 1.5rem;font-size:0.85rem" onclick="shufflePlaylist()">🔀 Yeniden Karıştır</button>
+            <button class="login-btn" style="padding:0.7rem 1.5rem;font-size:0.85rem;background:var(--surface2);color:var(--text)" onclick="openAllTracks()">▶️ Spotify'da Aç</button>
+          </div>
         </div>
       </div>
 
       <div class="content-grid fade-up">
         <div class="panel">
-          <div class="panel-title">🔝 En İyi Dönem</div>
-          <div id="tl-best" class="tl-stat-card"></div>
+          <div class="panel-title">🎵 Playlist</div>
+          <div id="playlist-name" style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;color:var(--green);margin-bottom:1rem"></div>
+          <div id="playlist-tracks"></div>
         </div>
         <div class="panel">
-          <div class="panel-title">📉 En Düşük Dönem</div>
-          <div id="tl-worst" class="tl-stat-card"></div>
+          <div class="panel-title">🧠 Claude Playlist Yorumu</div>
+          <div id="playlist-claude">
+            <div class="loading"><div class="spinner"></div><span>Claude yorumluyor...</span></div>
+          </div>
         </div>
       </div>
-
-      <div class="panel panel-full fade-up" style="margin-top:1.5rem">
-        <div class="panel-title">🧠 Claude — Zaman Trendleri</div>
-        <div id="tl-claude-analysis">
-          <div class="loading"><div class="spinner"></div><span>Trend analizi yapılıyor...</span></div>
-        </div>
-      </div>
-
     </section>
   </main>
 </div>
 
 <script>
-// ══════════════════════════════════════════════════════
-//  CONFIG
-// ══════════════════════════════════════════════════════
-let CLIENT_ID = '';
-const REDIRECT_URI = window.location.origin + window.location.pathname;
-const SCOPES = [
-  'user-read-private','user-read-email',
-  'user-top-read','user-read-recently-played',
-  'user-library-read'
-].join(' ');
-
-let accessToken = null;
-let currentTimeRange = 'short_term';
-let cachedData = {};
-
-// ══════════════════════════════════════════════════════
-//  PKCE HELPERS
-// ══════════════════════════════════════════════════════
-function generateRandomString(length) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const array = new Uint8Array(length);
-  crypto.getRandomValues(array);
-  return Array.from(array).map(b => chars[b % chars.length]).join('');
-}
-
-async function generateCodeChallenge(verifier) {
-  const data = new TextEncoder().encode(verifier);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-// ══════════════════════════════════════════════════════
-//  INIT
-// ══════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', async () => {
-  // Load config from Netlify function (env vars)
-  try {
-    const cfgRes = await fetch('/api/config');
-    const cfg = await cfgRes.json();
-    if (cfg.spotifyClientId) CLIENT_ID = cfg.spotifyClientId;
-  } catch(e) {
-    console.warn('Config fetch failed, using fallback');
-  }
-
-  const urlParams = new URLSearchParams(window.location.search);
-  const code = urlParams.get('code');
-  const error = urlParams.get('error');
-
-  if (error) {
-    alert('Spotify erişimi reddedildi: ' + error);
-    return;
-  }
-
-  if (code) {
-    window.history.replaceState({}, document.title, window.location.pathname);
-    await exchangeCode(code);
-    return;
-  }
-
-  // Check stored token
-  const stored = localStorage.getItem('spotify_access_token');
-  const expiry = localStorage.getItem('spotify_token_expiry');
-  if (stored && expiry && Date.now() < parseInt(expiry)) {
-    accessToken = stored;
-    showApp();
-  }
-});
-
-// ══════════════════════════════════════════════════════
-//  AUTH — PKCE
-// ══════════════════════════════════════════════════════
-async function startLogin() {
-  const verifier = generateRandomString(64);
-  const challenge = await generateCodeChallenge(verifier);
-  sessionStorage.setItem('pkce_verifier', verifier);
-
-  const params = new URLSearchParams({
-    client_id: CLIENT_ID,
-    response_type: 'code',
-    redirect_uri: REDIRECT_URI,
-    scope: SCOPES,
-    code_challenge_method: 'S256',
-    code_challenge: challenge,
-    show_dialog: 'true'
-  });
-  window.location.href = 'https://accounts.spotify.com/authorize?' + params.toString();
-}
-
-async function exchangeCode(code) {
-  const verifier = sessionStorage.getItem('pkce_verifier');
-  if (!verifier) {
-    // verifier kaybolmuşsa yeniden login yap
-    startLogin();
-    return;
-  }
-
-  const body = new URLSearchParams({
-    grant_type: 'authorization_code',
-    code,
-    redirect_uri: REDIRECT_URI,
-    client_id: CLIENT_ID,
-    code_verifier: verifier
-  });
-
-  try {
-    const res = await fetch('https://accounts.spotify.com/api/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body
-    });
-
-    const data = await res.json();
-    console.log('Token response:', data);
-
-    if (data.access_token) {
-      accessToken = data.access_token;
-      localStorage.setItem('spotify_access_token', data.access_token);
-      localStorage.setItem('spotify_token_expiry', String(Date.now() + data.expires_in * 1000));
-      if (data.refresh_token) {
-        localStorage.setItem('spotify_refresh_token', data.refresh_token);
-      }
-      sessionStorage.removeItem('pkce_verifier');
-      showApp();
-    } else {
-      console.error('Token hatası:', data);
-      document.getElementById('login-error').textContent =
-        'Giriş hatası: ' + (data.error_description || data.error || 'Bilinmeyen hata');
-    }
-  } catch (err) {
-    console.error('Fetch hatası:', err);
-    document.getElementById('login-error').textContent = 'Bağlantı hatası, tekrar deneyin.';
-  }
-}
-
-async function refreshToken() {
-  const refresh = localStorage.getItem('spotify_refresh_token');
-  if (!refresh) { logout(); return; }
-
-  const body = new URLSearchParams({
-    grant_type: 'refresh_token',
-    refresh_token: refresh,
-    client_id: CLIENT_ID
-  });
-
-  const res = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body
-  });
-
-  const data = await res.json();
-  if (data.access_token) {
-    accessToken = data.access_token;
-    localStorage.setItem('spotify_access_token', data.access_token);
-    localStorage.setItem('spotify_token_expiry', String(Date.now() + data.expires_in * 1000));
-    if (data.refresh_token) localStorage.setItem('spotify_refresh_token', data.refresh_token);
-  } else {
-    logout();
-  }
-}
-
-function logout() {
-  accessToken = null;
-  cachedData = {};
-  localStorage.removeItem('spotify_access_token');
-  localStorage.removeItem('spotify_token_expiry');
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
-}
-
-// ══════════════════════════════════════════════════════
-//  API
-// ══════════════════════════════════════════════════════
-async function api(endpoint) {
-  // Token süresi dolmuşsa yenile
-  const expiry = parseInt(localStorage.getItem('spotify_token_expiry') || '0');
-  if (Date.now() > expiry - 60000) {
-    await refreshToken();
-  }
-
-  const res = await fetch('https://api.spotify.com/v1' + endpoint, {
-    headers: { Authorization: 'Bearer ' + accessToken }
-  });
-  if (res.status === 401) {
-    await refreshToken();
-    if (!accessToken) return null;
-    const retry = await fetch('https://api.spotify.com/v1' + endpoint, {
-      headers: { Authorization: 'Bearer ' + accessToken }
-    });
-    if (!retry.ok) return null;
-    return retry.json();
-  }
-  if (!res.ok) { console.warn('API error', res.status, endpoint); return null; }
-  return res.json();
-}
-
-// ══════════════════════════════════════════════════════
-//  SHOW APP
-// ══════════════════════════════════════════════════════
-async function showApp() {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-
-  const me = await api('/me');
-  if (me) {
-    document.getElementById('user-name').textContent = me.display_name || me.email;
-    if (me.images && me.images[0]) {
-      document.getElementById('user-avatar').innerHTML = `<img src="${me.images[0].url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
-    }
-  }
-  loadAllData();
-}
-
-// ══════════════════════════════════════════════════════
-//  LOAD DATA
-// ══════════════════════════════════════════════════════
-async function loadAllData() {
-  const key = currentTimeRange;
-  if (cachedData[key]) { renderAll(cachedData[key]); return; }
-
-  const [tracksData, artistsData, recentData] = await Promise.all([
-    api(`/me/top/tracks?limit=20&time_range=${currentTimeRange}`),
-    api(`/me/top/artists?limit=20&time_range=${currentTimeRange}`),
-    api('/me/player/recently-played?limit=50')
-  ]);
-
-  const tracks = tracksData?.items || [];
-  const artists = artistsData?.items || [];
-  const recent = recentData?.items || [];
-
-  cachedData[key] = { tracks, artists, recent };
-  renderAll(cachedData[key]);
-}
-
-// ══════════════════════════════════════════════════════
-//  RENDER
-// ══════════════════════════════════════════════════════
-function renderAll({ tracks, artists, recent }) {
-  renderStats(tracks, artists);
-  renderOverviewTracks(tracks);
-  renderOverviewArtists(artists);
-  renderTracksList(tracks);
-  renderArtists(artists);
-  renderMood(tracks, artists);
-  renderRecent(recent);
-  drawRadar(tracks, artists);
-  renderLyricsPicker(tracks);
-  renderOverallSentiment(tracks, artists);
-}
-
-function avg(arr, key) {
-  if (!arr.length) return 0;
-  return arr.reduce((s, f) => s + (f[key] || 0), 0) / arr.length;
-}
-
-function renderStats(tracks, artists) {
-  if (!tracks.length) return;
-  const avgPop = Math.round(tracks.reduce((s,t) => s + t.popularity, 0) / tracks.length);
-  const avgArtistPop = artists.length ? Math.round(artists.reduce((s,a) => s + a.popularity, 0) / artists.length) : 0;
-  const explicit = tracks.filter(t => t.explicit).length;
-  const avgDuration = Math.round(tracks.reduce((s,t) => s + t.duration_ms, 0) / tracks.length / 1000 / 60 * 10) / 10;
-  document.getElementById('stat-tempo').textContent = avgPop;
-  document.getElementById('stat-energy').textContent = avgArtistPop;
-  document.getElementById('stat-valence').textContent = explicit;
-  document.getElementById('stat-dance').textContent = avgDuration + 'dk';
-}
-
-function trackHTML(t, idx) {
-  const img = t.album?.images?.[2]?.url || t.album?.images?.[0]?.url || '';
-  return `
-    <div class="track-item" onclick="window.open('${t.external_urls?.spotify}','_blank')">
-      <div class="track-rank">${idx + 1}</div>
-      <div class="track-art">${img ? `<img src="${img}" alt="">` : '🎵'}</div>
-      <div class="track-info">
-        <div class="track-name">${t.name}</div>
-        <div class="track-artist">${t.artists?.map(a => a.name).join(', ')}</div>
-      </div>
-      <div class="track-bar-wrap">
-        <div class="track-bar"><div class="track-bar-fill" style="width:${t.popularity}%"></div></div>
-      </div>
-    </div>`;
-}
-
-function renderOverviewTracks(tracks) {
-  const el = document.getElementById('overview-tracks');
-  if (!tracks.length) { el.innerHTML = '<div class="loading">Veri yok</div>'; return; }
-  el.innerHTML = tracks.slice(0, 8).map((t, i) => trackHTML(t, i)).join('');
-}
-
-function renderOverviewArtists(artists) {
-  const el = document.getElementById('overview-artists');
-  if (!artists.length) { el.innerHTML = '<div class="loading">Veri yok</div>'; return; }
-  el.innerHTML = artists.slice(0, 8).map((a, i) => {
-    const img = a.images?.[2]?.url || a.images?.[0]?.url || '';
-    return `
-      <div class="track-item" onclick="window.open('${a.external_urls?.spotify}','_blank')">
-        <div class="track-rank">${i + 1}</div>
-        <div class="track-art" style="border-radius:50%">${img ? `<img src="${img}" style="border-radius:50%">` : '🎤'}</div>
-        <div class="track-info">
-          <div class="track-name">${a.name}</div>
-          <div class="track-artist">${a.genres?.slice(0, 2).join(', ') || 'Sanatçı'}</div>
-        </div>
-        <div class="track-bar-wrap">
-          <div class="track-bar"><div class="track-bar-fill" style="width:${a.popularity}%"></div></div>
-        </div>
-      </div>`;
-  }).join('');
-}
-
-function renderTracksList(tracks) {
-  const el = document.getElementById('tracks-list');
-  if (!tracks.length) { el.innerHTML = '<div class="loading">Veri yok</div>'; return; }
-  el.innerHTML = tracks.map((t, i) => trackHTML(t, i)).join('');
-}
-
-function renderArtists(artists) {
-  const grid = document.getElementById('artists-grid');
-  const cloud = document.getElementById('genres-cloud');
-  if (!artists.length) { grid.innerHTML = '<div class="loading">Veri yok</div>'; return; }
-
-  grid.innerHTML = artists.map(a => {
-    const img = a.images?.[1]?.url || a.images?.[0]?.url || '';
-    return `
-      <div class="artist-card" onclick="window.open('${a.external_urls?.spotify}','_blank')">
-        <div class="artist-img">${img ? `<img src="${img}" alt="">` : '🎤'}</div>
-        <div class="artist-name">${a.name}</div>
-      </div>`;
-  }).join('');
-
-  const genreCount = {};
-  artists.forEach(a => (a.genres || []).forEach(g => genreCount[g] = (genreCount[g] || 0) + 1));
-  const sorted = Object.entries(genreCount).sort((a, b) => b[1] - a[1]).slice(0, 20);
-  const max = sorted[0]?.[1] || 1;
-  cloud.innerHTML = sorted.map(([g, c]) =>
-    `<span class="genre-tag ${c / max > 0.4 ? 'big' : ''}">${g}</span>`
-  ).join('');
-}
-
-function renderMood(tracks, artists) {
-  if (!tracks.length) return;
-
-  // Genre-based mood detection
-  const allGenres = artists.flatMap(a => a.genres || []).join(' ').toLowerCase();
-  const explicit = tracks.filter(t => t.explicit).length;
-  const explicitRatio = explicit / tracks.length;
-  const avgPop = tracks.reduce((s,t) => s + t.popularity, 0) / tracks.length;
-
-  let emoji, title, desc;
-  if (allGenres.includes('metal') || allGenres.includes('hardcore') || allGenres.includes('punk')) {
-    emoji = '🤘'; title = 'Sert & Yoğun'; desc = 'Güçlü, enerjik müzik seçimlerin var.';
-  } else if (allGenres.includes('sad') || allGenres.includes('emo') || allGenres.includes('melanchol')) {
-    emoji = '🌙'; title = 'Melankolik'; desc = 'Derin ve içe dönük bir müzik profili.';
-  } else if (allGenres.includes('hip hop') || allGenres.includes('rap') || allGenres.includes('trap')) {
-    emoji = '🎤'; title = 'Hip-Hop Ruhu'; desc = 'Ritimli ve akıcı müzik sevensin.';
-  } else if (allGenres.includes('pop') && avgPop > 70) {
-    emoji = '✨'; title = 'Pop Hayranı'; desc = 'Popüler ve enerjik müzik seçimlerin var.';
-  } else if (allGenres.includes('jazz') || allGenres.includes('classical') || allGenres.includes('ambient')) {
-    emoji = '🎷'; title = 'Sofistike'; desc = 'Rafine ve derin müzik zevkin var.';
-  } else if (allGenres.includes('rock') || allGenres.includes('alternative')) {
-    emoji = '🎸'; title = 'Rock Ruhu'; desc = 'Güçlü gitarlar ve enerjik ritimler sevensin.';
-  } else if (allGenres.includes('electronic') || allGenres.includes('edm') || allGenres.includes('house')) {
-    emoji = '🎧'; title = 'Elektronik Ruh'; desc = 'Beatler ve synth sesleri sevensin.';
-  } else {
-    emoji = '🎭'; title = 'Keşifçi'; desc = 'Geniş ve çeşitli bir müzik zevkin var.';
-  }
-
-  document.getElementById('mood-summary').innerHTML = `
-    <div class="mood-emoji">${emoji}</div>
-    <div class="mood-title">${title}</div>
-    <div class="mood-desc">${desc}</div>`;
-
-  // Stats based on available data
-  const totalMs = tracks.reduce((s,t) => s + t.duration_ms, 0);
-  const avgDurMin = (totalMs / tracks.length / 60000).toFixed(1);
-  const maxPop = Math.max(...tracks.map(t => t.popularity));
-  const minPop = Math.min(...tracks.map(t => t.popularity));
-  const uniqueArtists = new Set(tracks.flatMap(t => t.artists.map(a => a.name))).size;
-
-  const metrics = [
-    { label: 'Avg Popülerlik', value: avgPop / 100, display: Math.round(avgPop), color: '#1DB954' },
-    { label: 'Explicit Oran',  value: explicitRatio, display: Math.round(explicitRatio*100)+'%', color: '#ff6b6b' },
-    { label: 'En Popüler',     value: maxPop / 100,  display: maxPop, color: '#ffd93d' },
-    { label: 'En Niş',         value: minPop / 100,  display: minPop, color: '#6bcff6' },
-    { label: 'Farklı Sanatçı', value: uniqueArtists / 20, display: uniqueArtists, color: '#c77dff' },
-    { label: 'Ort. Süre',      value: Math.min(parseFloat(avgDurMin)/6,1), display: avgDurMin+'dk', color: '#ff9f43' },
-  ];
-
-  document.getElementById('mood-grid').innerHTML = metrics.map(m => `
-    <div class="mood-item">
-      <div class="mood-label"><span>${m.label}</span><span>${m.display}</span></div>
-      <div class="mood-bar"><div class="mood-bar-fill" style="width:${Math.round(m.value*100)}%;background:${m.color}"></div></div>
-    </div>`).join('');
-}
-
-function renderRecent(recent) {
-  const el = document.getElementById('recent-list');
-  if (!recent.length) { el.innerHTML = '<div class="loading">Veri yok</div>'; return; }
-  el.innerHTML = recent.map(item => {
-    const t = item.track;
-    const img = t.album?.images?.[2]?.url || '';
-    const time = new Date(item.played_at);
-    const timeStr = time.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-    const dateStr = time.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
-    return `
-      <div class="recent-item" onclick="window.open('${t.external_urls?.spotify}','_blank')">
-        <div class="track-art">${img ? `<img src="${img}" alt="">` : '🎵'}</div>
-        <div class="track-info">
-          <div class="track-name">${t.name}</div>
-          <div class="track-artist">${t.artists?.map(a => a.name).join(', ')}</div>
-        </div>
-        <div class="recent-time">${timeStr}<br><span style="font-size:0.65rem">${dateStr}</span></div>
-      </div>`;
-  }).join('');
-}
-
-// ══════════════════════════════════════════════════════
-//  RADAR CHART
-// ══════════════════════════════════════════════════════
-function drawRadar(tracks, artists) {
-  const canvas = document.getElementById('radar-canvas');
-  if (!canvas || !tracks.length) return;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 30;
-
-  const allGenres = artists.flatMap(a => a.genres || []).join(' ').toLowerCase();
-  const explicit = tracks.filter(t => t.explicit).length / tracks.length;
-  const avgPop = tracks.reduce((s,t) => s + t.popularity, 0) / tracks.length / 100;
-  const uniqueArtists = new Set(tracks.flatMap(t => t.artists.map(a => a.name))).size / 20;
-  const avgDur = tracks.reduce((s,t) => s + t.duration_ms, 0) / tracks.length;
-  const durNorm = Math.min(avgDur / 360000, 1); // normalize to 6 min
-  const hasElectronic = /electronic|edm|house|techno|synth/.test(allGenres) ? 0.8 : 0.2;
-  const hasAcoustic = /acoustic|folk|classical|jazz|piano/.test(allGenres) ? 0.8 : 0.2;
-
-  const metrics = [
-    { label: 'Popülerlik', val: avgPop },
-    { label: 'Çeşitlilik', val: Math.min(uniqueArtists, 1) },
-    { label: 'Süre',       val: durNorm },
-    { label: 'Akustik',    val: hasAcoustic },
-    { label: 'Elektronik', val: hasElectronic },
-    { label: 'Explicit',   val: explicit },
-  ];
-
-  const vals = metrics.map(m => m.val);
-  const N = metrics.length;
-  ctx.clearRect(0, 0, W, H);
-
-  for (let r = 1; r <= 4; r++) {
-    ctx.beginPath();
-    for (let i = 0; i < N; i++) {
-      const angle = (i / N) * Math.PI * 2 - Math.PI / 2;
-      const x = cx + Math.cos(angle) * R * (r / 4);
-      const y = cy + Math.sin(angle) * R * (r / 4);
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  }
-
-  for (let i = 0; i < N; i++) {
-    const angle = (i / N) * Math.PI * 2 - Math.PI / 2;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(angle) * R, cy + Math.sin(angle) * R);
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.stroke();
-  }
-
-  ctx.beginPath();
-  for (let i = 0; i < N; i++) {
-    const angle = (i / N) * Math.PI * 2 - Math.PI / 2;
-    const x = cx + Math.cos(angle) * R * vals[i];
-    const y = cy + Math.sin(angle) * R * vals[i];
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(29,185,84,0.18)';
-  ctx.fill();
-  ctx.strokeStyle = '#1DB954';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  for (let i = 0; i < N; i++) {
-    const angle = (i / N) * Math.PI * 2 - Math.PI / 2;
-    const x = cx + Math.cos(angle) * R * vals[i];
-    const y = cy + Math.sin(angle) * R * vals[i];
-    ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fillStyle = '#1DB954';
-    ctx.fill();
-  }
-
-  ctx.font = '500 11px "DM Sans", sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  for (let i = 0; i < N; i++) {
-    const angle = (i / N) * Math.PI * 2 - Math.PI / 2;
-    const lx = cx + Math.cos(angle) * (R + 22);
-    const ly = cy + Math.sin(angle) * (R + 22);
-    ctx.fillText(metrics[i].label, lx, ly);
-  }
-}
-
-// ══════════════════════════════════════════════════════
-//  NAVIGATION
-// ══════════════════════════════════════════════════════
-function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('screen-' + name).classList.add('active');
-  event.target.classList.add('active');
-  if (name === 'lyrics') initApiKeyBanner();
-  if (name === 'timeline') initTimeline();
-}
-
-function setTimeRange(range, btn) {
-  currentTimeRange = range;
-  document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  loadAllData();
-}
-
-
-// ══════════════════════════════════════════════════════
-//  API KEY MANAGEMENT
-// ══════════════════════════════════════════════════════
-function getApiKey() {
-  return localStorage.getItem('anthropic_api_key') || '';
-}
-
-function saveApiKey() {
-  const val = document.getElementById('apikey-input').value.trim();
-  if (!val.startsWith('sk-ant-')) {
-    document.getElementById('apikey-status').innerHTML =
-      '<span style="color:var(--accent)">❌ Geçersiz key — sk-ant- ile başlamalı</span>';
-    return;
-  }
-  localStorage.setItem('anthropic_api_key', val);
-  document.getElementById('apikey-status').innerHTML =
-    '<span style="color:var(--green)">✅ Kaydedildi! Artık Claude analizi çalışacak.</span>';
-  document.getElementById('apikey-banner').style.background = 'rgba(29,185,84,0.12)';
-  document.getElementById('apikey-banner').style.borderColor = 'rgba(29,185,84,0.4)';
-}
-
-function initApiKeyBanner() {
-  const key = getApiKey();
-  if (key) {
-    document.getElementById('apikey-input').value = key;
-    document.getElementById('apikey-status').innerHTML =
-      '<span style="color:var(--green)">✅ API key kayıtlı</span>';
-    document.getElementById('apikey-banner').style.background = 'rgba(29,185,84,0.12)';
-    document.getElementById('apikey-banner').style.borderColor = 'rgba(29,185,84,0.4)';
-  }
-}
-
-// ══════════════════════════════════════════════════════
-//  LYRICS & SENTIMENT
-// ══════════════════════════════════════════════════════
-
-function renderLyricsPicker(tracks) {
-  const el = document.getElementById('lyrics-track-list');
-  if (!el || !tracks.length) return;
-  el.innerHTML = tracks.slice(0, 12).map((t, i) => {
-    const img = t.album?.images?.[2]?.url || '';
-    return `
-      <button class="lyrics-pick-btn" onclick="analyzeLyrics(${i})" id="pick-${i}">
-        <div class="track-art" style="width:40px;height:40px;flex-shrink:0">
-          ${img ? `<img src="${img}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:6px">` : '🎵'}
-        </div>
-        <div class="lyrics-pick-info">
-          <div class="lyrics-pick-name">${t.name}</div>
-          <div class="lyrics-pick-artist">${t.artists?.map(a => a.name).join(', ')}</div>
-        </div>
-      </button>`;
-  }).join('');
-}
-
-async function analyzeLyrics(trackIdx) {
-  const data = cachedData[currentTimeRange];
-  if (!data) return;
-  const track = data.tracks[trackIdx];
-  if (!track) return;
-
-  const btn = document.getElementById('pick-' + trackIdx);
-  if (btn) btn.classList.add('loading-state');
-
-  const artist = track.artists[0].name;
-  const title = track.name;
-  const cleanTitle = title.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '')
-    .replace(/- ?(remaster|live|edition|version|remix|mix|mono|stereo|bonus).*/gi, '').trim();
-
-  document.getElementById('lyrics-result').style.display = 'block';
-  document.getElementById('lyrics-panel-title').textContent = `🎵 ${cleanTitle} — ${artist}`;
-  document.getElementById('lyrics-text').innerHTML =
-    '<div style="color:var(--muted);font-style:italic;padding:0.5rem 0">Claude şarkı bilgisini kullanarak analiz yapıyor...</div>';
-  document.getElementById('word-freq-chart').innerHTML =
-    '<div style="color:var(--muted);font-size:0.82rem;padding:0.5rem 0">Analiz tamamlanınca kelimeler burada görünür.</div>';
-  document.getElementById('sentiment-result').innerHTML =
-    '<div class="loading"><div class="spinner"></div><span>Analiz ediliyor...</span></div>';
-  document.getElementById('lyrics-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-  if (btn) btn.classList.remove('loading-state');
-
-  await runSentimentAnalysis(null, cleanTitle, artist);
-}
-
-function renderWordFrequency(lyrics) {
-  const stopWords = new Set([
-    'the','a','an','and','or','but','in','on','at','to','for','of','with',
-    'is','are','was','were','be','been','being','have','has','had','do','does','did',
-    'will','would','could','should','may','might','shall','can','need',
-    'i','you','he','she','it','we','they','me','him','her','us','them',
-    'my','your','his','its','our','their','this','that','these','those',
-    'what','which','who','when','where','how','why','all','just','more',
-    'so','if','as','up','out','not','no','oh','yeah','know','like','get',
-    'got','let','say','go','come','im','dont','ive','ill','id','youre',
-    'thats','its','its','cause','cuz','bout','em','da','na','la','ay',
-    'yeah','oh','ooh','ah','hey','whoa','baby','love','feel','wanna','gonna'
-  ]);
-
-  const words = lyrics.toLowerCase()
-    .replace(/[^a-züğışöçÜĞİŞÖÇa-z\s]/gi, ' ')
-    .split(/\s+/)
-    .filter(w => w.length > 2 && !stopWords.has(w));
-
-  const freq = {};
-  words.forEach(w => freq[w] = (freq[w] || 0) + 1);
-
-  const sorted = Object.entries(freq)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 12);
-
-  if (!sorted.length) {
-    document.getElementById('word-freq-chart').innerHTML =
-      '<div style="color:var(--muted);font-size:0.85rem">Kelime bulunamadı</div>';
-    return;
-  }
-
-  const maxCount = sorted[0][1];
-  document.getElementById('word-freq-chart').innerHTML = sorted.map(([word, count]) => `
-    <div class="word-freq-item">
-      <div class="word-freq-label">${word}</div>
-      <div class="word-freq-bar">
-        <div class="word-freq-fill" style="width:${Math.round(count/maxCount*100)}%">
-          <span class="word-freq-count">${count}x</span>
-        </div>
-      </div>
-    </div>`).join('');
-}
-
-async function runSentimentAnalysis(lyrics, title, artist) {
-  const sentimentEl = document.getElementById('sentiment-result');
-  sentimentEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>Claude analiz ediyor...</span></div>';
-
-  try {
-    const prompt = `"${title}" by ${artist} şarkısını analiz et.
-
-Şu formatta JSON döndür, başka hiçbir şey yazma:
-{
-  "emoji": "(tek emoji)",
-  "sentiment": "(Pozitif / Negatif / Nötr / Karışık)",
-  "score": (0-100 arası pozitiflik puanı),
-  "dimensions": {
-    "mutluluk": (0-100),
-    "melankolik": (0-100),
-    "agresif": (0-100),
-    "romantik": (0-100),
-    "umutlu": (0-100)
-  },
-  "ozet": "(2-3 cümle Türkçe özet: şarkının ana teması, duygusal tonu ve öne çıkan mesajı)",
-  "anahtar_temalar": ["tema1", "tema2", "tema3"],
-  "lyrics_excerpt": "(şarkının nakarat veya en bilinen kıtasını buraya yaz, 4-8 satır)"
-}`;
-
-    const res = await fetch('/api/claude', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    const data = await res.json();
-    if (data.error) throw new Error(typeof data.error === 'object' ? JSON.stringify(data.error) : data.error);
-
-    const text = data.content?.[0]?.text || '';
-    if (!text) throw new Error('Claude boş yanıt döndürdü');
-
-    const clean = text
-      .replace(/```json/g, '')
-      .replace(/```/g, '')
-      .trim();
-
-    // JSON bloğunu bul
-    const jsonMatch = clean.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('JSON bulunamadı: ' + clean.slice(0, 100));
-
-    const result = JSON.parse(jsonMatch[0]);
-
-    // Show lyrics excerpt
-    if (result.lyrics_excerpt) {
-      document.getElementById('lyrics-text').textContent = result.lyrics_excerpt;
-      renderWordFrequency(result.lyrics_excerpt);
-    } else {
-      document.getElementById('lyrics-text').innerHTML =
-        '<div style="color:var(--muted);font-style:italic">Bu şarkı için söz verisi bulunamadı.</div>';
-    }
-
-    const dims = result.dimensions;
-    const dimColors = {
-      mutluluk: '#ffd93d', melankolik: '#6bcff6',
-      agresif: '#ff6b6b', romantik: '#ff9ff3', umutlu: '#1DB954'
-    };
-
-    sentimentEl.innerHTML = `
-      <div class="sentiment-result-inner">
-        <div class="sentiment-score-wrap">
-          <div class="sentiment-emoji">${result.emoji}</div>
-          <div class="sentiment-label">${result.sentiment}</div>
-          <div class="sentiment-score">Pozitiflik: ${result.score}/100</div>
-        </div>
-        <div class="sentiment-bars">
-          ${Object.entries(dims).map(([k, v]) => `
-            <div>
-              <div class="sentiment-dim-label">
-                <span style="color:var(--muted);text-transform:capitalize">${k}</span>
-                <span>${v}</span>
-              </div>
-              <div class="mood-bar">
-                <div class="mood-bar-fill" style="width:${v}%;background:${dimColors[k]||'#1DB954'}"></div>
-              </div>
-            </div>`).join('')}
-          <div style="margin-top:0.8rem;display:flex;flex-wrap:wrap;gap:0.4rem">
-            ${(result.anahtar_temalar||[]).map(t =>
-              `<span class="genre-tag big">${t}</span>`
-            ).join('')}
-          </div>
-        </div>
-        <div class="sentiment-analysis-text">${result.ozet}</div>
-      </div>`;
-
-  } catch(err) {
-    console.error('Sentiment error:', err);
-    sentimentEl.innerHTML = `<div class="sentiment-error">
-      Claude API hatası. Uygulama claude.ai üzerinden açıldığında otomatik çalışır. Hata: ${err.message}
-    </div>`;
-  }
-}
-
-
-// ══════════════════════════════════════════════════════
-//  OVERALL SENTIMENT
-// ══════════════════════════════════════════════════════
-async function renderOverallSentiment(tracks, artists) {
-  const el = document.getElementById('overall-sentiment-result');
-  if (!el || !tracks.length) return;
-
-  const trackList = tracks.slice(0, 10).map(t =>
-    `- "${t.name}" by ${t.artists.map(a => a.name).join(', ')}`
-  ).join('\n');
-
-  const genreList = [...new Set(artists.flatMap(a => a.genres || []))].slice(0, 8).join(', ');
-
-  const prompt = `Aşağıdaki şarkılar bir kullanıcının son dönemde en çok dinlediği müzikler:
-
-${trackList}
-
-Favori türler: ${genreList || 'bilinmiyor'}
-
-Bu müzik listesine bakarak kullanıcının genel ruh halini, müzik kişiliğini ve dinleme alışkanlıklarını analiz et.
-
-Şu formatta JSON döndür, başka hiçbir şey yazma:
-{
-  "emoji": "(tek emoji)",
-  "baslik": "(3-4 kelimelik başlık, örn: Melankolik Bir Ruh)",
-  "overall_score": (0-100 genel pozitiflik),
-  "dimensions": {
-    "mutluluk": (0-100),
-    "melankolik": (0-100),
-    "agresif": (0-100),
-    "romantik": (0-100),
-    "umutlu": (0-100)
-  },
-  "ozet": "(3-4 cümle Türkçe: bu müzik listesinin genel hikayesi, kullanıcının muhtemel ruh hali ve müzik kişiliği)",
-  "kisilik": "(tek cümle: bu müziği dinleyen kişiyi tarif et)",
-  "anahtar_temalar": ["tema1", "tema2", "tema3", "tema4"]
-}`;
-
-  try {
-    const res = await fetch('/api/claude', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    const data = await res.json();
-    if (data.error) throw new Error(typeof data.error === 'object' ? JSON.stringify(data.error) : data.error);
-
-    const text = data.content?.[0]?.text || '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('JSON bulunamadı');
-    const r = JSON.parse(jsonMatch[0]);
-
-    const dimColors = {
-      mutluluk: '#ffd93d', melankolik: '#6bcff6',
-      agresif: '#ff6b6b', romantik: '#ff9ff3', umutlu: '#1DB954'
-    };
-
-    el.innerHTML = `
-      <div class="sentiment-result-inner">
-        <div class="sentiment-score-wrap">
-          <div class="sentiment-emoji">${r.emoji}</div>
-          <div class="sentiment-label">${r.baslik}</div>
-          <div class="sentiment-score">Pozitiflik: ${r.overall_score}/100</div>
-          <div style="margin-top:0.8rem;font-size:0.78rem;color:var(--muted);font-style:italic;line-height:1.5">${r.kisilik}</div>
-        </div>
-        <div class="sentiment-bars">
-          ${Object.entries(r.dimensions).map(([k, v]) => `
-            <div>
-              <div class="sentiment-dim-label">
-                <span style="color:var(--muted);text-transform:capitalize">${k}</span>
-                <span>${v}</span>
-              </div>
-              <div class="mood-bar">
-                <div class="mood-bar-fill" style="width:${v}%;background:${dimColors[k]||'#1DB954'}"></div>
-              </div>
-            </div>`).join('')}
-          <div style="margin-top:0.8rem;display:flex;flex-wrap:wrap;gap:0.4rem">
-            ${(r.anahtar_temalar||[]).map(t =>
-              `<span class="genre-tag big">${t}</span>`
-            ).join('')}
-          </div>
-        </div>
-        <div class="sentiment-analysis-text">${r.ozet}</div>
-      </div>`;
-
-  } catch(err) {
-    console.error('Overall sentiment error:', err);
-    el.innerHTML = `<div class="sentiment-error">Analiz yapılamadı: ${err.message}</div>`;
-  }
-}
-
-
-// ══════════════════════════════════════════════════════
-//  TIMELINE
 // ══════════════════════════════════════════════════════
 let currentPeriod = 'weekly';
 let timelineInitialized = false;
@@ -2351,6 +1502,212 @@ JSON formatında döndür, başka hiçbir şey yazma:
 
   } catch(err) {
     el.innerHTML = `<div class="sentiment-error">Trend analizi yapılamadı: ${err.message}</div>`;
+  }
+}
+
+
+// ══════════════════════════════════════════════════════
+//  HOURLY TIMELINE
+// ══════════════════════════════════════════════════════
+function renderHourlyTimeline(recent) {
+  const wrap = document.getElementById('tl-chart-wrap');
+  const countEl = document.getElementById('tl-track-count');
+  if (!wrap) return;
+
+  if (!recent || !recent.length) {
+    wrap.innerHTML = '<div class="tl-no-data">Yeterli dinleme verisi bulunamadi.</div>';
+    return;
+  }
+
+  // Group by hour (0-23)
+  const hours = Array.from({length: 24}, (_, i) => ({ hour: i, tracks: [], score: 0 }));
+  recent.forEach(item => {
+    const h = new Date(item.played_at).getHours();
+    hours[h].tracks.push(item.track);
+  });
+
+  // Score each hour
+  hours.forEach(h => {
+    if (!h.tracks.length) { h.score = null; return; }
+    const avgPop = h.tracks.reduce((s, t) => s + (t.popularity || 50), 0) / h.tracks.length;
+    const explicit = h.tracks.filter(t => t.explicit).length / h.tracks.length;
+    h.score = Math.round(Math.min(100, avgPop * 0.7 + (1 - explicit) * 30));
+  });
+
+  const active = hours.filter(h => h.score !== null);
+  if (countEl) countEl.textContent = active.length + ' saatte ' + recent.length + ' dinleme';
+
+  // Bar chart — 24 saatlik
+  const barW = 100 / 24;
+  const maxScore = Math.max(...active.map(h => h.score));
+
+  let bars = '';
+  hours.forEach(h => {
+    const hasData = h.score !== null;
+    const heightPct = hasData ? (h.score / 100) * 100 : 0;
+    const color = !hasData ? 'var(--surface3)' :
+      h.score > 70 ? '#1DB954' :
+      h.score > 40 ? '#ffd93d' : '#ff6b6b';
+    const label = h.hour % 3 === 0 ? String(h.hour).padStart(2,'0') + ':00' : '';
+    const title = hasData ? `${String(h.hour).padStart(2,'0')}:00 — ${h.tracks.length} sarki, skor: ${h.score}` : `${String(h.hour).padStart(2,'0')}:00 — veri yok`;
+
+    bars += `<div title="${title}" style="
+      position:absolute;
+      left:${h.hour * (100/24)}%;
+      width:calc(${100/24}% - 2px);
+      bottom:20px;
+      height:calc(${heightPct}% - 0px);
+      background:${color};
+      border-radius:3px 3px 0 0;
+      opacity:${hasData ? 0.9 : 0.2};
+      transition:opacity 0.2s;
+      cursor:${hasData ? 'pointer' : 'default'};
+    " onmouseenter="this.style.opacity=1" onmouseleave="this.style.opacity='${hasData ? 0.9 : 0.2}'"></div>`;
+
+    if (label) {
+      bars += `<div style="position:absolute;left:${h.hour*(100/24)}%;bottom:4px;font-size:9px;color:rgba(255,255,255,0.3);width:30px">${label}</div>`;
+    }
+  });
+
+  wrap.innerHTML = `
+    <div style="position:relative;width:100%;height:160px;margin-top:0.5rem">
+      ${bars}
+      <div style="position:absolute;bottom:20px;left:0;right:0;height:1px;background:rgba(255,255,255,0.06)"></div>
+    </div>`;
+
+  // Best/worst hour
+  if (!active.length) return;
+  const best = active.reduce((a, b) => a.score > b.score ? a : b);
+  const worst = active.reduce((a, b) => a.score < b.score ? a : b);
+
+  const fmtHour = h => String(h).padStart(2,'0') + ':00';
+  document.getElementById('tl-best').innerHTML = `
+    <div style="font-size:0.72rem;color:var(--green);font-family:'Syne',sans-serif;font-weight:700;margin-bottom:0.3rem">✨ EN AKTİF SAAT</div>
+    <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800">${fmtHour(best.hour)}</div>
+    <div style="font-size:0.8rem;color:var(--muted)">${best.tracks.length} sarki · skor ${best.score}</div>`;
+
+  document.getElementById('tl-worst').innerHTML = `
+    <div style="font-size:0.72rem;color:var(--accent);font-family:'Syne',sans-serif;font-weight:700;margin-bottom:0.3rem">🌙 EN SAKİN SAAT</div>
+    <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800">${fmtHour(worst.hour)}</div>
+    <div style="font-size:0.8rem;color:var(--muted)">${worst.tracks.length} sarki · skor ${worst.score}</div>`;
+}
+
+// ══════════════════════════════════════════════════════
+//  SHUFFLED PLAYLIST
+// ══════════════════════════════════════════════════════
+let currentPlaylist = [];
+
+function initPlaylist(tracks, artists) {
+  if (tracks) {
+    const data = cachedData[currentTimeRange];
+    if (data) shufflePlaylist(data.tracks, data.artists);
+  }
+}
+
+async function shufflePlaylist(tracksArg, artistsArg) {
+  const data = cachedData[currentTimeRange];
+  if (!data) return;
+  const tracks = tracksArg || data.tracks;
+  const artists = artistsArg || data.artists;
+
+  const trackEl = document.getElementById('playlist-tracks');
+  const claudeEl = document.getElementById('playlist-claude');
+  const nameEl = document.getElementById('playlist-name');
+
+  if (trackEl) trackEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>Benzer sarkiler aranıyor...</span></div>';
+  if (nameEl) nameEl.textContent = '...';
+  if (claudeEl) claudeEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>Claude yorumluyor...</span></div>';
+
+  // Pick 5 random seed tracks from top tracks
+  const pool = [...tracks];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const seeds = pool.slice(0, 5).map(t => t.id).join(',');
+
+  // Fetch recommendations
+  const recData = await api(`/recommendations?seed_tracks=${seeds}&limit=20`);
+  if (!recData || !recData.tracks || !recData.tracks.length) {
+    if (trackEl) trackEl.innerHTML = '<div style="color:var(--muted);padding:1rem">Oneri alinamadi, tekrar dene.</div>';
+    return;
+  }
+
+  currentPlaylist = recData.tracks;
+
+  if (trackEl) {
+    trackEl.innerHTML = currentPlaylist.map((t, i) => trackHTML(t, i)).join('');
+  }
+
+  await generatePlaylistName(currentPlaylist, artists);
+}
+
+function openAllTracks() {
+  if (!currentPlaylist.length) return;
+  // Open first track, rest can be queued
+  const url = currentPlaylist[0]?.external_urls?.spotify;
+  if (url) window.open(url, '_blank');
+}
+
+async function generatePlaylistName(tracks, artists) {
+  const nameEl = document.getElementById('playlist-name');
+  const claudeEl = document.getElementById('playlist-claude');
+  if (!claudeEl) return;
+
+  claudeEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>Claude yorumluyor...</span></div>';
+  if (nameEl) nameEl.textContent = '...';
+
+  const trackList = tracks.slice(0, 10).map(t =>
+    `"${t.name}" - ${t.artists[0]?.name}`
+  ).join(', ');
+
+  const genreList = [...new Set((artists || []).flatMap(a => a.genres || []))].slice(0, 5).join(', ');
+
+  const prompt = `Bu playlist icin yaratici bir isim ve kisa bir yorum yaz.
+
+Sarkilar: ${trackList}
+Turler: ${genreList}
+
+JSON formatinda don, baska hicbir sey yazma:
+{
+  "name": "(2-4 kelime yaratici playlist adi, Turkce veya Ingilizce olabilir)",
+  "emoji": "(tek emoji)",
+  "vibe": "(tek cumle: bu playlistin genel havasi)",
+  "yorum": "(2-3 cumle: bu sarki seciminin hikayesi ve dinleyiciye ne hissettirec)"
+}`;
+
+  try {
+    const res = await fetch('/api/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 400,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(JSON.stringify(data.error));
+    const text = data.content?.[0]?.text || '';
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('JSON yok');
+    const r = JSON.parse(match[0]);
+
+    if (nameEl) nameEl.textContent = r.emoji + ' ' + r.name;
+
+    claudeEl.innerHTML = `
+      <div style="margin-bottom:1rem;padding:1rem;background:var(--surface2);border-radius:12px;border-left:3px solid var(--green)">
+        <div style="font-size:0.75rem;color:var(--green);font-family:'Syne',sans-serif;font-weight:700;margin-bottom:0.3rem">VIBE</div>
+        <div style="font-size:0.9rem;font-style:italic;color:#ddd">${r.vibe}</div>
+      </div>
+      <div style="font-size:0.9rem;line-height:1.7;color:#ccc">${r.yorum}</div>
+      <div style="margin-top:1.5rem;font-size:0.75rem;color:var(--muted)">
+        ${currentPlaylist.length} sarki · 
+        ${Math.round(currentPlaylist.reduce((s,t) => s + t.duration_ms, 0) / 60000)} dakika
+      </div>`;
+  } catch(err) {
+    claudeEl.innerHTML = `<div class="sentiment-error">Yorum yapilamadi: ${err.message}</div>`;
+    if (nameEl) nameEl.textContent = 'Shuffled Mix';
   }
 }
 
