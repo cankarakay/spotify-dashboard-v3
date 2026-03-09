@@ -1783,14 +1783,14 @@ async function runSentimentAnalysis(lyrics, title, artist) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }]
       })
     });
 
     const data = await res.json();
-    if (data.error) throw new Error(data.error);
+    if (data.error) throw new Error(typeof data.error === 'object' ? JSON.stringify(data.error) : data.error);
 
     const text = data.content?.[0]?.text || '';
     if (!text) throw new Error('Claude boş yanıt döndürdü');
