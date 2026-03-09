@@ -1,0 +1,1871 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Müzik Dünyan · Spotify Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #1DB954;
+    --green-dim: #158a3e;
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --surface3: #22222f;
+    --text: #f0f0f8;
+    --muted: #6b6b80;
+    --accent: #ff6b6b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE TEXTURE ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.6;
+  }
+
+  /* ── LOGIN SCREEN ── */
+  #login-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+    padding: 2rem;
+  }
+
+  .login-glow {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(29,185,84,0.15) 0%, transparent 70%);
+    pointer-events: none;
+    animation: pulse 4s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.1); opacity: 1; }
+  }
+
+  .login-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    font-weight: 800;
+    line-height: 1;
+    text-align: center;
+    margin-bottom: 1rem;
+    position: relative;
+  }
+
+  .login-title span {
+    color: var(--green);
+  }
+
+  .login-subtitle {
+    color: var(--muted);
+    font-size: 1.1rem;
+    text-align: center;
+    margin-bottom: 3rem;
+    font-weight: 300;
+    font-style: italic;
+    max-width: 400px;
+    line-height: 1.6;
+  }
+
+  .login-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    background: var(--green);
+    color: #000;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 1rem 2.5rem;
+    border: none;
+    border-radius: 100px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    position: relative;
+    letter-spacing: 0.02em;
+  }
+
+  .login-btn:hover {
+    background: #1ed760;
+    transform: translateY(-2px);
+    box-shadow: 0 20px 60px rgba(29,185,84,0.4);
+  }
+
+  .login-btn svg { width: 24px; height: 24px; }
+
+  .login-note {
+    margin-top: 2rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-align: center;
+    max-width: 360px;
+    line-height: 1.6;
+  }
+
+  /* ── SETUP GUIDE ── */
+  #setup-guide {
+    display: none;
+    max-width: 680px;
+    margin: 3rem auto 0;
+    background: var(--surface);
+    border: 1px solid var(--surface3);
+    border-radius: 20px;
+    padding: 2rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  #setup-guide h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+    color: var(--green);
+  }
+
+  .step {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+    align-items: flex-start;
+  }
+
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--surface3);
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .step-text { font-size: 0.9rem; line-height: 1.6; color: #ccc; }
+  .step-text a { color: var(--green); text-decoration: none; }
+  .step-text code {
+    background: var(--surface3);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: var(--text);
+  }
+
+  .client-input-row {
+    display: flex;
+    gap: 0.8rem;
+    margin-top: 1.5rem;
+  }
+
+  .client-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--surface3);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .client-input:focus { border-color: var(--green); }
+  .client-input::placeholder { color: var(--muted); }
+
+  .save-btn {
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    padding: 0.8rem 1.5rem;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+  .save-btn:hover { background: #1ed760; }
+
+  .show-setup-btn {
+    background: transparent;
+    border: 1px solid var(--surface3);
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 1.5rem;
+    transition: all 0.2s;
+  }
+  .show-setup-btn:hover { border-color: var(--muted); color: var(--text); }
+
+  /* ── APP ── */
+  #app { display: none; position: relative; z-index: 1; }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--surface2);
+    position: sticky;
+    top: 0;
+    background: rgba(10,10,15,0.9);
+    backdrop-filter: blur(20px);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .logo-dot { color: var(--green); }
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 0.85rem;
+  }
+
+  .user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--surface3);
+    border: 2px solid var(--green);
+    object-fit: cover;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+  }
+
+  .logout-btn {
+    background: transparent;
+    border: 1px solid var(--surface3);
+    color: var(--muted);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+  .logout-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── NAV TABS ── */
+  .nav-tabs {
+    display: flex;
+    gap: 0;
+    padding: 1.5rem 2rem 0;
+    border-bottom: 1px solid var(--surface2);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav-tab {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.8rem 1.2rem;
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+    transition: color 0.2s;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .nav-tab::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--green);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+  }
+
+  .nav-tab.active { color: var(--text); }
+  .nav-tab.active::after { transform: scaleX(1); }
+  .nav-tab:hover { color: var(--text); }
+
+  /* ── TIME RANGE ── */
+  .time-controls {
+    display: flex;
+    gap: 0.5rem;
+    padding: 1.5rem 2rem 0;
+  }
+
+  .time-btn {
+    background: var(--surface2);
+    border: 1px solid transparent;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    padding: 0.4rem 1rem;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .time-btn.active {
+    background: rgba(29,185,84,0.15);
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  /* ── MAIN CONTENT ── */
+  main { padding: 2rem; max-width: 1400px; margin: 0 auto; }
+
+  /* ── STAT CARDS ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--surface2);
+    border-radius: 16px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .stat-card:hover {
+    border-color: var(--surface3);
+    transform: translateY(-2px);
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--green);
+    opacity: 0.5;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+  }
+
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--green);
+  }
+
+  .stat-sub {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+  }
+
+  /* ── GRID ── */
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  @media (max-width: 900px) {
+    .content-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── PANEL ── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--surface2);
+    border-radius: 20px;
+    padding: 1.5rem;
+  }
+
+  .panel-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+  }
+
+  /* ── TRACK LIST ── */
+  .track-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.2s;
+    border-radius: 8px;
+    padding: 0.6rem 0.5rem;
+    cursor: pointer;
+  }
+
+  .track-item:hover { background: var(--surface2); }
+
+  .track-rank {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.7rem;
+    color: var(--muted);
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .track-art {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: var(--surface3);
+    flex-shrink: 0;
+    overflow: hidden;
+    object-fit: cover;
+  }
+
+  .track-art img { width: 100%; height: 100%; object-fit: cover; }
+
+  .track-info { flex: 1; min-width: 0; }
+
+  .track-name {
+    font-size: 0.9rem;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .track-artist {
+    font-size: 0.78rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+  }
+
+  .track-bar-wrap {
+    width: 60px;
+    flex-shrink: 0;
+  }
+
+  .track-bar {
+    height: 3px;
+    background: var(--surface3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .track-bar-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+
+  /* ── MOOD METER ── */
+  .mood-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .mood-item { }
+
+  .mood-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.4rem;
+    font-size: 0.8rem;
+  }
+
+  .mood-label span:first-child { color: var(--muted); }
+  .mood-label span:last-child { color: var(--text); font-weight: 500; }
+
+  .mood-bar {
+    height: 6px;
+    background: var(--surface3);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .mood-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ── ARTIST GRID ── */
+  .artist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1rem;
+  }
+
+  .artist-card {
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+
+  .artist-card:hover { transform: translateY(-4px); }
+
+  .artist-img {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--surface3);
+    margin-bottom: 0.6rem;
+    overflow: hidden;
+  }
+
+  .artist-img img { width: 100%; height: 100%; object-fit: cover; }
+
+  .artist-name {
+    font-size: 0.82rem;
+    line-height: 1.3;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  /* ── RECENT ── */
+  .recent-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.6rem 0.5rem;
+    border-radius: 8px;
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+
+  .recent-item:hover { background: var(--surface2); }
+
+  .recent-time {
+    font-size: 0.72rem;
+    color: var(--muted);
+    flex-shrink: 0;
+    width: 55px;
+    text-align: right;
+  }
+
+  /* ── GENRE TAGS ── */
+  .genre-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .genre-tag {
+    background: var(--surface2);
+    border: 1px solid var(--surface3);
+    border-radius: 100px;
+    padding: 0.4rem 1rem;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+  }
+
+  .genre-tag.big {
+    background: rgba(29,185,84,0.12);
+    border-color: rgba(29,185,84,0.3);
+    color: var(--green);
+    font-weight: 500;
+  }
+
+  /* ── RADAR CHART ── */
+  .radar-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem 0;
+  }
+
+  /* ── LOADING ── */
+  .loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem;
+    color: var(--muted);
+    gap: 1rem;
+  }
+
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--surface3);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── SCREEN SECTIONS ── */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ── FADE IN ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-up { animation: fadeUp 0.5s ease forwards; }
+
+  /* ── ERROR ── */
+  .error-box {
+    background: rgba(255,107,107,0.1);
+    border: 1px solid rgba(255,107,107,0.3);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    color: var(--accent);
+    font-size: 0.9rem;
+    margin: 1rem 0;
+  }
+
+  /* ── MOOD EMOJI ── */
+  .mood-summary {
+    text-align: center;
+    padding: 1.5rem;
+  }
+
+  .mood-emoji {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .mood-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    margin-bottom: 0.3rem;
+  }
+
+  .mood-desc {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-style: italic;
+  }
+
+  /* ── FULL WIDTH PANEL ── */
+  .panel-full {
+    margin-bottom: 1.5rem;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+
+  /* ── LYRICS SCREEN ── */
+  .lyrics-hero {
+    text-align: center;
+    padding: 1rem 0 2rem;
+  }
+
+  .lyrics-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+
+  .lyrics-intro-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+  }
+
+  .lyrics-intro-sub {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 2rem;
+    font-style: italic;
+  }
+
+  .lyrics-track-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.8rem;
+    text-align: left;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .lyrics-pick-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    background: var(--surface);
+    border: 1px solid var(--surface2);
+    border-radius: 12px;
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text);
+    text-align: left;
+  }
+
+  .lyrics-pick-btn:hover {
+    border-color: var(--green);
+    background: var(--surface2);
+    transform: translateY(-2px);
+  }
+
+  .lyrics-pick-btn.loading-state {
+    border-color: var(--green);
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  .lyrics-pick-info { min-width: 0; }
+  .lyrics-pick-name { font-size: 0.85rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lyrics-pick-artist { font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .lyrics-text-box {
+    max-height: 400px;
+    overflow-y: auto;
+    font-size: 0.88rem;
+    line-height: 1.9;
+    color: #ccc;
+    white-space: pre-line;
+    padding: 0.5rem;
+    font-style: italic;
+  }
+
+  .word-freq-chart {
+    padding: 0.5rem 0;
+  }
+
+  .word-freq-item {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .word-freq-label {
+    width: 90px;
+    font-size: 0.8rem;
+    color: var(--text);
+    text-align: right;
+    flex-shrink: 0;
+    font-family: 'Syne', sans-serif;
+  }
+
+  .word-freq-bar {
+    flex: 1;
+    height: 22px;
+    background: var(--surface3);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .word-freq-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #1DB954, #1ed760);
+    border-radius: 4px;
+    transition: width 1s ease;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 6px;
+  }
+
+  .word-freq-count {
+    font-size: 0.7rem;
+    color: #000;
+    font-weight: 700;
+  }
+
+  /* ── SENTIMENT BOX ── */
+  .sentiment-box {
+    min-height: 120px;
+  }
+
+  .sentiment-result-inner {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  @media (max-width: 700px) {
+    .sentiment-result-inner { grid-template-columns: 1fr; }
+  }
+
+  .sentiment-score-wrap {
+    text-align: center;
+    padding: 1.5rem;
+    background: var(--surface2);
+    border-radius: 16px;
+  }
+
+  .sentiment-emoji { font-size: 3.5rem; margin-bottom: 0.5rem; }
+
+  .sentiment-label {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.2rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .sentiment-score {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .sentiment-bars { display: flex; flex-direction: column; gap: 0.8rem; }
+
+  .sentiment-dim-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .sentiment-analysis-text {
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: #ddd;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--surface2);
+    grid-column: 1 / -1;
+  }
+
+  .sentiment-error {
+    color: var(--accent);
+    font-size: 0.9rem;
+    padding: 1rem;
+  }
+
+  .back-btn {
+    background: transparent;
+    border: 1px solid var(--surface3);
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 1.5rem;
+    transition: all 0.2s;
+  }
+
+  .back-btn:hover { border-color: var(--text); color: var(--text); }
+
+
+
+  .apikey-status { font-size: 0.78rem; margin-top: 0.3rem; }
+
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     LOGIN SCREEN
+════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-glow"></div>
+
+  <div style="position:relative; text-align:center;">
+    <div class="login-title">
+      Müzik<br><span>Dünyan</span>
+    </div>
+    <p class="login-subtitle">
+      Spotify verilerinle ruhunu keşfet — en çok dinlediklerin, müzik enerjin ve daha fazlası.
+    </p>
+
+    <p id="login-error" style="color:#ff6b6b;font-size:0.85rem;margin-bottom:1rem;min-height:1.2em"></p>
+    <button class="login-btn" onclick="startLogin()">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+      </svg>
+      Spotify ile Bağlan
+    </button>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     APP
+════════════════════════════════════════ -->
+<div id="app">
+  <header>
+    <div class="logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="#1DB954">
+        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+      </svg>
+      Müzik<span class="logo-dot">·</span>Dünyan
+    </div>
+    <div class="user-info">
+      <div class="user-avatar" id="user-avatar">🎵</div>
+      <span id="user-name" style="font-size:0.85rem; color:var(--muted)"></span>
+      <button class="logout-btn" onclick="logout()">Çıkış</button>
+    </div>
+  </header>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showScreen('overview')">Genel Bakış</button>
+    <button class="nav-tab" onclick="showScreen('tracks')">Şarkılar</button>
+    <button class="nav-tab" onclick="showScreen('artists')">Sanatçılar</button>
+    <button class="nav-tab" onclick="showScreen('mood')">Ruh Hali</button>
+    <button class="nav-tab" onclick="showScreen('recent')">Son Dinlenenler</button>
+    <button class="nav-tab" onclick="showScreen('lyrics')">🔬 Söz Analizi</button>
+  </div>
+
+  <div class="time-controls">
+    <button class="time-btn active" onclick="setTimeRange('short_term', this)">Son 4 Hafta</button>
+    <button class="time-btn" onclick="setTimeRange('medium_term', this)">Son 6 Ay</button>
+    <button class="time-btn" onclick="setTimeRange('long_term', this)">Tüm Zaman</button>
+  </div>
+
+  <main>
+
+    <!-- OVERVIEW -->
+    <section class="screen active" id="screen-overview">
+      <div class="stats-row" id="stats-row">
+        <div class="stat-card fade-up">
+          <div class="stat-label">Ortalama Popülerlik</div>
+          <div class="stat-value" id="stat-tempo">–</div>
+          <div class="stat-sub">/ 100</div>
+        </div>
+        <div class="stat-card fade-up" style="animation-delay:0.1s">
+          <div class="stat-label">Sanatçı Popülerliği</div>
+          <div class="stat-value" id="stat-energy">–</div>
+          <div class="stat-sub">/ 100</div>
+        </div>
+        <div class="stat-card fade-up" style="animation-delay:0.2s">
+          <div class="stat-label">Explicit Şarkı</div>
+          <div class="stat-value" id="stat-valence">–</div>
+          <div class="stat-sub">/ 100</div>
+        </div>
+        <div class="stat-card fade-up" style="animation-delay:0.3s">
+          <div class="stat-label">Ort. Süre</div>
+          <div class="stat-value" id="stat-dance">–</div>
+          <div class="stat-sub">/ 100</div>
+        </div>
+      </div>
+
+      <div class="content-grid fade-up" style="animation-delay:0.2s">
+        <div class="panel">
+          <div class="panel-title">🔥 En Çok Dinlenen Şarkılar</div>
+          <div id="overview-tracks"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">⭐ En Sevilen Sanatçılar</div>
+          <div id="overview-artists"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <div class="panel panel-full fade-up" style="animation-delay:0.3s">
+        <div class="panel-title">🎭 Müzik Profili — Radar</div>
+        <div class="radar-wrap">
+          <canvas id="radar-canvas" width="300" height="300"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRACKS -->
+    <section class="screen" id="screen-tracks">
+      <div class="panel fade-up">
+        <div class="panel-title">🎵 Top Şarkılar</div>
+        <div id="tracks-list"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+    </section>
+
+    <!-- ARTISTS -->
+    <section class="screen" id="screen-artists">
+      <div class="panel fade-up">
+        <div class="panel-title">🎤 Top Sanatçılar</div>
+        <div id="artists-grid" class="artist-grid" style="padding-top:1rem"></div>
+        <div class="panel-title" style="margin-top:2rem">🎼 Favori Türler</div>
+        <div id="genres-cloud" class="genre-cloud" style="margin-top:1rem"></div>
+      </div>
+    </section>
+
+    <!-- MOOD -->
+    <section class="screen" id="screen-mood">
+      <div class="content-grid fade-up">
+        <div class="panel">
+          <div class="panel-title">🎭 Ruh Hali Analizi</div>
+          <div id="mood-summary" class="mood-summary"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">📊 Müzik Özellikleri</div>
+          <div id="mood-grid" class="mood-grid" style="margin-top:0.5rem"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RECENT -->
+    <section class="screen" id="screen-recent">
+      <div class="panel fade-up">
+        <div class="panel-title">🕐 Son Dinlenenler</div>
+        <div id="recent-list"></div>
+      </div>
+    </section>
+
+
+    <!-- LYRICS ANALYSIS -->
+    <section class="screen" id="screen-lyrics">
+      <div class="lyrics-hero fade-up">
+        <div class="lyrics-intro">
+          <div class="lyrics-icon">🔬</div>
+          <h2 class="lyrics-intro-title">Söz Analizi</h2>
+          <p class="lyrics-intro-sub">Top şarkılarından birini seç — sözlerini çekip Claude ile derin bir duygu analizi yapayım.</p>
+        </div>
+        <div id="lyrics-track-list" class="lyrics-track-picker"></div>
+      </div>
+
+      <div id="lyrics-result" style="display:none">
+        <div class="content-grid fade-up">
+          <div class="panel">
+            <div class="panel-title" id="lyrics-panel-title">📝 Şarkı Sözleri</div>
+            <div id="lyrics-text" class="lyrics-text-box"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">☁️ En Sık Kelimeler</div>
+            <div id="word-freq-chart" class="word-freq-chart"></div>
+          </div>
+        </div>
+        <div class="panel panel-full fade-up" style="margin-top:1.5rem">
+          <div class="panel-title">🧠 Claude Sentiment Analizi</div>
+          <div id="sentiment-result" class="sentiment-box">
+            <div class="loading"><div class="spinner"></div><span>Claude analiz ediyor...</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════════════
+let CLIENT_ID = '';
+const REDIRECT_URI = window.location.origin + window.location.pathname;
+const SCOPES = [
+  'user-read-private','user-read-email',
+  'user-top-read','user-read-recently-played',
+  'user-library-read'
+].join(' ');
+
+let accessToken = null;
+let currentTimeRange = 'short_term';
+let cachedData = {};
+
+// ══════════════════════════════════════════════════════
+//  PKCE HELPERS
+// ══════════════════════════════════════════════════════
+function generateRandomString(length) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return Array.from(array).map(b => chars[b % chars.length]).join('');
+}
+
+async function generateCodeChallenge(verifier) {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', async () => {
+  // Load config from Netlify function (env vars)
+  try {
+    const cfgRes = await fetch('/api/config');
+    const cfg = await cfgRes.json();
+    if (cfg.spotifyClientId) CLIENT_ID = cfg.spotifyClientId;
+  } catch(e) {
+    console.warn('Config fetch failed, using fallback');
+  }
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  const error = urlParams.get('error');
+
+  if (error) {
+    alert('Spotify erişimi reddedildi: ' + error);
+    return;
+  }
+
+  if (code) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    await exchangeCode(code);
+    return;
+  }
+
+  // Check stored token
+  const stored = localStorage.getItem('spotify_access_token');
+  const expiry = localStorage.getItem('spotify_token_expiry');
+  if (stored && expiry && Date.now() < parseInt(expiry)) {
+    accessToken = stored;
+    showApp();
+  }
+});
+
+// ══════════════════════════════════════════════════════
+//  AUTH — PKCE
+// ══════════════════════════════════════════════════════
+async function startLogin() {
+  const verifier = generateRandomString(64);
+  const challenge = await generateCodeChallenge(verifier);
+  sessionStorage.setItem('pkce_verifier', verifier);
+
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: REDIRECT_URI,
+    scope: SCOPES,
+    code_challenge_method: 'S256',
+    code_challenge: challenge,
+    show_dialog: 'true'
+  });
+  window.location.href = 'https://accounts.spotify.com/authorize?' + params.toString();
+}
+
+async function exchangeCode(code) {
+  const verifier = sessionStorage.getItem('pkce_verifier');
+  if (!verifier) {
+    // verifier kaybolmuşsa yeniden login yap
+    startLogin();
+    return;
+  }
+
+  const body = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: REDIRECT_URI,
+    client_id: CLIENT_ID,
+    code_verifier: verifier
+  });
+
+  try {
+    const res = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body
+    });
+
+    const data = await res.json();
+    console.log('Token response:', data);
+
+    if (data.access_token) {
+      accessToken = data.access_token;
+      localStorage.setItem('spotify_access_token', data.access_token);
+      localStorage.setItem('spotify_token_expiry', String(Date.now() + data.expires_in * 1000));
+      if (data.refresh_token) {
+        localStorage.setItem('spotify_refresh_token', data.refresh_token);
+      }
+      sessionStorage.removeItem('pkce_verifier');
+      showApp();
+    } else {
+      console.error('Token hatası:', data);
+      document.getElementById('login-error').textContent =
+        'Giriş hatası: ' + (data.error_description || data.error || 'Bilinmeyen hata');
+    }
+  } catch (err) {
+    console.error('Fetch hatası:', err);
+    document.getElementById('login-error').textContent = 'Bağlantı hatası, tekrar deneyin.';
+  }
+}
+
+async function refreshToken() {
+  const refresh = localStorage.getItem('spotify_refresh_token');
+  if (!refresh) { logout(); return; }
+
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: refresh,
+    client_id: CLIENT_ID
+  });
+
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body
+  });
+
+  const data = await res.json();
+  if (data.access_token) {
+    accessToken = data.access_token;
+    localStorage.setItem('spotify_access_token', data.access_token);
+    localStorage.setItem('spotify_token_expiry', String(Date.now() + data.expires_in * 1000));
+    if (data.refresh_token) localStorage.setItem('spotify_refresh_token', data.refresh_token);
+  } else {
+    logout();
+  }
+}
+
+function logout() {
+  accessToken = null;
+  cachedData = {};
+  localStorage.removeItem('spotify_access_token');
+  localStorage.removeItem('spotify_token_expiry');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// ══════════════════════════════════════════════════════
+//  API
+// ══════════════════════════════════════════════════════
+async function api(endpoint) {
+  // Token süresi dolmuşsa yenile
+  const expiry = parseInt(localStorage.getItem('spotify_token_expiry') || '0');
+  if (Date.now() > expiry - 60000) {
+    await refreshToken();
+  }
+
+  const res = await fetch('https://api.spotify.com/v1' + endpoint, {
+    headers: { Authorization: 'Bearer ' + accessToken }
+  });
+  if (res.status === 401) {
+    await refreshToken();
+    if (!accessToken) return null;
+    const retry = await fetch('https://api.spotify.com/v1' + endpoint, {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    });
+    if (!retry.ok) return null;
+    return retry.json();
+  }
+  if (!res.ok) { console.warn('API error', res.status, endpoint); return null; }
+  return res.json();
+}
+
+// ══════════════════════════════════════════════════════
+//  SHOW APP
+// ══════════════════════════════════════════════════════
+async function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  const me = await api('/me');
+  if (me) {
+    document.getElementById('user-name').textContent = me.display_name || me.email;
+    if (me.images && me.images[0]) {
+      document.getElementById('user-avatar').innerHTML = `<img src="${me.images[0].url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+    }
+  }
+  loadAllData();
+}
+
+// ══════════════════════════════════════════════════════
+//  LOAD DATA
+// ══════════════════════════════════════════════════════
+async function loadAllData() {
+  const key = currentTimeRange;
+  if (cachedData[key]) { renderAll(cachedData[key]); return; }
+
+  const [tracksData, artistsData, recentData] = await Promise.all([
+    api(`/me/top/tracks?limit=20&time_range=${currentTimeRange}`),
+    api(`/me/top/artists?limit=20&time_range=${currentTimeRange}`),
+    api('/me/player/recently-played?limit=30')
+  ]);
+
+  const tracks = tracksData?.items || [];
+  const artists = artistsData?.items || [];
+  const recent = recentData?.items || [];
+
+  cachedData[key] = { tracks, artists, recent };
+  renderAll(cachedData[key]);
+}
+
+// ══════════════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════════════
+function renderAll({ tracks, artists, recent }) {
+  renderStats(tracks, artists);
+  renderOverviewTracks(tracks);
+  renderOverviewArtists(artists);
+  renderTracksList(tracks);
+  renderArtists(artists);
+  renderMood(tracks, artists);
+  renderRecent(recent);
+  drawRadar(tracks, artists);
+  renderLyricsPicker(tracks);
+}
+
+function avg(arr, key) {
+  if (!arr.length) return 0;
+  return arr.reduce((s, f) => s + (f[key] || 0), 0) / arr.length;
+}
+
+function renderStats(tracks, artists) {
+  if (!tracks.length) return;
+  const avgPop = Math.round(tracks.reduce((s,t) => s + t.popularity, 0) / tracks.length);
+  const avgArtistPop = artists.length ? Math.round(artists.reduce((s,a) => s + a.popularity, 0) / artists.length) : 0;
+  const explicit = tracks.filter(t => t.explicit).length;
+  const avgDuration = Math.round(tracks.reduce((s,t) => s + t.duration_ms, 0) / tracks.length / 1000 / 60 * 10) / 10;
+  document.getElementById('stat-tempo').textContent = avgPop;
+  document.getElementById('stat-energy').textContent = avgArtistPop;
+  document.getElementById('stat-valence').textContent = explicit;
+  document.getElementById('stat-dance').textContent = avgDuration + 'dk';
+}
+
+function trackHTML(t, idx) {
+  const img = t.album?.images?.[2]?.url || t.album?.images?.[0]?.url || '';
+  return `
+    <div class="track-item" onclick="window.open('${t.external_urls?.spotify}','_blank')">
+      <div class="track-rank">${idx + 1}</div>
+      <div class="track-art">${img ? `<img src="${img}" alt="">` : '🎵'}</div>
+      <div class="track-info">
+        <div class="track-name">${t.name}</div>
+        <div class="track-artist">${t.artists?.map(a => a.name).join(', ')}</div>
+      </div>
+      <div class="track-bar-wrap">
+        <div class="track-bar"><div class="track-bar-fill" style="width:${t.popularity}%"></div></div>
+      </div>
+    </div>`;
+}
+
+function renderOverviewTracks(tracks) {
+  const el = document.getElementById('overview-tracks');
+  if (!tracks.length) { el.innerHTML = '<div class="loading">Veri yok</div>'; return; }
+  el.innerHTML = tracks.slice(0, 8).map((t, i) => trackHTML(t, i)).join('');
+}
+
+function renderOverviewArtists(artists) {
+  const el = document.getElementById('overview-artists');
+  if (!artists.length) { el.innerHTML = '<div class="loading">Veri yok</div>'; return; }
+  el.innerHTML = artists.slice(0, 8).map((a, i) => {
+    const img = a.images?.[2]?.url || a.images?.[0]?.url || '';
+    return `
+      <div class="track-item" onclick="window.open('${a.external_urls?.spotify}','_blank')">
+        <div class="track-rank">${i + 1}</div>
+        <div class="track-art" style="border-radius:50%">${img ? `<img src="${img}" style="border-radius:50%">` : '🎤'}</div>
+        <div class="track-info">
+          <div class="track-name">${a.name}</div>
+          <div class="track-artist">${a.genres?.slice(0, 2).join(', ') || 'Sanatçı'}</div>
+        </div>
+        <div class="track-bar-wrap">
+          <div class="track-bar"><div class="track-bar-fill" style="width:${a.popularity}%"></div></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderTracksList(tracks) {
+  const el = document.getElementById('tracks-list');
+  if (!tracks.length) { el.innerHTML = '<div class="loading">Veri yok</div>'; return; }
+  el.innerHTML = tracks.map((t, i) => trackHTML(t, i)).join('');
+}
+
+function renderArtists(artists) {
+  const grid = document.getElementById('artists-grid');
+  const cloud = document.getElementById('genres-cloud');
+  if (!artists.length) { grid.innerHTML = '<div class="loading">Veri yok</div>'; return; }
+
+  grid.innerHTML = artists.map(a => {
+    const img = a.images?.[1]?.url || a.images?.[0]?.url || '';
+    return `
+      <div class="artist-card" onclick="window.open('${a.external_urls?.spotify}','_blank')">
+        <div class="artist-img">${img ? `<img src="${img}" alt="">` : '🎤'}</div>
+        <div class="artist-name">${a.name}</div>
+      </div>`;
+  }).join('');
+
+  const genreCount = {};
+  artists.forEach(a => (a.genres || []).forEach(g => genreCount[g] = (genreCount[g] || 0) + 1));
+  const sorted = Object.entries(genreCount).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  const max = sorted[0]?.[1] || 1;
+  cloud.innerHTML = sorted.map(([g, c]) =>
+    `<span class="genre-tag ${c / max > 0.4 ? 'big' : ''}">${g}</span>`
+  ).join('');
+}
+
+function renderMood(tracks, artists) {
+  if (!tracks.length) return;
+
+  // Genre-based mood detection
+  const allGenres = artists.flatMap(a => a.genres || []).join(' ').toLowerCase();
+  const explicit = tracks.filter(t => t.explicit).length;
+  const explicitRatio = explicit / tracks.length;
+  const avgPop = tracks.reduce((s,t) => s + t.popularity, 0) / tracks.length;
+
+  let emoji, title, desc;
+  if (allGenres.includes('metal') || allGenres.includes('hardcore') || allGenres.includes('punk')) {
+    emoji = '🤘'; title = 'Sert & Yoğun'; desc = 'Güçlü, enerjik müzik seçimlerin var.';
+  } else if (allGenres.includes('sad') || allGenres.includes('emo') || allGenres.includes('melanchol')) {
+    emoji = '🌙'; title = 'Melankolik'; desc = 'Derin ve içe dönük bir müzik profili.';
+  } else if (allGenres.includes('hip hop') || allGenres.includes('rap') || allGenres.includes('trap')) {
+    emoji = '🎤'; title = 'Hip-Hop Ruhu'; desc = 'Ritimli ve akıcı müzik sevensin.';
+  } else if (allGenres.includes('pop') && avgPop > 70) {
+    emoji = '✨'; title = 'Pop Hayranı'; desc = 'Popüler ve enerjik müzik seçimlerin var.';
+  } else if (allGenres.includes('jazz') || allGenres.includes('classical') || allGenres.includes('ambient')) {
+    emoji = '🎷'; title = 'Sofistike'; desc = 'Rafine ve derin müzik zevkin var.';
+  } else if (allGenres.includes('rock') || allGenres.includes('alternative')) {
+    emoji = '🎸'; title = 'Rock Ruhu'; desc = 'Güçlü gitarlar ve enerjik ritimler sevensin.';
+  } else if (allGenres.includes('electronic') || allGenres.includes('edm') || allGenres.includes('house')) {
+    emoji = '🎧'; title = 'Elektronik Ruh'; desc = 'Beatler ve synth sesleri sevensin.';
+  } else {
+    emoji = '🎭'; title = 'Keşifçi'; desc = 'Geniş ve çeşitli bir müzik zevkin var.';
+  }
+
+  document.getElementById('mood-summary').innerHTML = `
+    <div class="mood-emoji">${emoji}</div>
+    <div class="mood-title">${title}</div>
+    <div class="mood-desc">${desc}</div>`;
+
+  // Stats based on available data
+  const totalMs = tracks.reduce((s,t) => s + t.duration_ms, 0);
+  const avgDurMin = (totalMs / tracks.length / 60000).toFixed(1);
+  const maxPop = Math.max(...tracks.map(t => t.popularity));
+  const minPop = Math.min(...tracks.map(t => t.popularity));
+  const uniqueArtists = new Set(tracks.flatMap(t => t.artists.map(a => a.name))).size;
+
+  const metrics = [
+    { label: 'Avg Popülerlik', value: avgPop / 100, display: Math.round(avgPop), color: '#1DB954' },
+    { label: 'Explicit Oran',  value: explicitRatio, display: Math.round(explicitRatio*100)+'%', color: '#ff6b6b' },
+    { label: 'En Popüler',     value: maxPop / 100,  display: maxPop, color: '#ffd93d' },
+    { label: 'En Niş',         value: minPop / 100,  display: minPop, color: '#6bcff6' },
+    { label: 'Farklı Sanatçı', value: uniqueArtists / 20, display: uniqueArtists, color: '#c77dff' },
+    { label: 'Ort. Süre',      value: Math.min(parseFloat(avgDurMin)/6,1), display: avgDurMin+'dk', color: '#ff9f43' },
+  ];
+
+  document.getElementById('mood-grid').innerHTML = metrics.map(m => `
+    <div class="mood-item">
+      <div class="mood-label"><span>${m.label}</span><span>${m.display}</span></div>
+      <div class="mood-bar"><div class="mood-bar-fill" style="width:${Math.round(m.value*100)}%;background:${m.color}"></div></div>
+    </div>`).join('');
+}
+
+function renderRecent(recent) {
+  const el = document.getElementById('recent-list');
+  if (!recent.length) { el.innerHTML = '<div class="loading">Veri yok</div>'; return; }
+  el.innerHTML = recent.map(item => {
+    const t = item.track;
+    const img = t.album?.images?.[2]?.url || '';
+    const time = new Date(item.played_at);
+    const timeStr = time.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = time.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+    return `
+      <div class="recent-item" onclick="window.open('${t.external_urls?.spotify}','_blank')">
+        <div class="track-art">${img ? `<img src="${img}" alt="">` : '🎵'}</div>
+        <div class="track-info">
+          <div class="track-name">${t.name}</div>
+          <div class="track-artist">${t.artists?.map(a => a.name).join(', ')}</div>
+        </div>
+        <div class="recent-time">${timeStr}<br><span style="font-size:0.65rem">${dateStr}</span></div>
+      </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+//  RADAR CHART
+// ══════════════════════════════════════════════════════
+function drawRadar(tracks, artists) {
+  const canvas = document.getElementById('radar-canvas');
+  if (!canvas || !tracks.length) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 30;
+
+  const allGenres = artists.flatMap(a => a.genres || []).join(' ').toLowerCase();
+  const explicit = tracks.filter(t => t.explicit).length / tracks.length;
+  const avgPop = tracks.reduce((s,t) => s + t.popularity, 0) / tracks.length / 100;
+  const uniqueArtists = new Set(tracks.flatMap(t => t.artists.map(a => a.name))).size / 20;
+  const avgDur = tracks.reduce((s,t) => s + t.duration_ms, 0) / tracks.length;
+  const durNorm = Math.min(avgDur / 360000, 1); // normalize to 6 min
+  const hasElectronic = /electronic|edm|house|techno|synth/.test(allGenres) ? 0.8 : 0.2;
+  const hasAcoustic = /acoustic|folk|classical|jazz|piano/.test(allGenres) ? 0.8 : 0.2;
+
+  const metrics = [
+    { label: 'Popülerlik', val: avgPop },
+    { label: 'Çeşitlilik', val: Math.min(uniqueArtists, 1) },
+    { label: 'Süre',       val: durNorm },
+    { label: 'Akustik',    val: hasAcoustic },
+    { label: 'Elektronik', val: hasElectronic },
+    { label: 'Explicit',   val: explicit },
+  ];
+
+  const vals = metrics.map(m => m.val);
+  const N = metrics.length;
+  ctx.clearRect(0, 0, W, H);
+
+  for (let r = 1; r <= 4; r++) {
+    ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      const angle = (i / N) * Math.PI * 2 - Math.PI / 2;
+      const x = cx + Math.cos(angle) * R * (r / 4);
+      const y = cy + Math.sin(angle) * R * (r / 4);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  for (let i = 0; i < N; i++) {
+    const angle = (i / N) * Math.PI * 2 - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(angle) * R, cy + Math.sin(angle) * R);
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.stroke();
+  }
+
+  ctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const angle = (i / N) * Math.PI * 2 - Math.PI / 2;
+    const x = cx + Math.cos(angle) * R * vals[i];
+    const y = cy + Math.sin(angle) * R * vals[i];
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(29,185,84,0.18)';
+  ctx.fill();
+  ctx.strokeStyle = '#1DB954';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  for (let i = 0; i < N; i++) {
+    const angle = (i / N) * Math.PI * 2 - Math.PI / 2;
+    const x = cx + Math.cos(angle) * R * vals[i];
+    const y = cy + Math.sin(angle) * R * vals[i];
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#1DB954';
+    ctx.fill();
+  }
+
+  ctx.font = '500 11px "DM Sans", sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < N; i++) {
+    const angle = (i / N) * Math.PI * 2 - Math.PI / 2;
+    const lx = cx + Math.cos(angle) * (R + 22);
+    const ly = cy + Math.sin(angle) * (R + 22);
+    ctx.fillText(metrics[i].label, lx, ly);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════════
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'lyrics') initApiKeyBanner();
+}
+
+function setTimeRange(range, btn) {
+  currentTimeRange = range;
+  document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadAllData();
+}
+
+
+// ══════════════════════════════════════════════════════
+//  API KEY MANAGEMENT
+// ══════════════════════════════════════════════════════
+function getApiKey() {
+  return localStorage.getItem('anthropic_api_key') || '';
+}
+
+function saveApiKey() {
+  const val = document.getElementById('apikey-input').value.trim();
+  if (!val.startsWith('sk-ant-')) {
+    document.getElementById('apikey-status').innerHTML =
+      '<span style="color:var(--accent)">❌ Geçersiz key — sk-ant- ile başlamalı</span>';
+    return;
+  }
+  localStorage.setItem('anthropic_api_key', val);
+  document.getElementById('apikey-status').innerHTML =
+    '<span style="color:var(--green)">✅ Kaydedildi! Artık Claude analizi çalışacak.</span>';
+  document.getElementById('apikey-banner').style.background = 'rgba(29,185,84,0.12)';
+  document.getElementById('apikey-banner').style.borderColor = 'rgba(29,185,84,0.4)';
+}
+
+function initApiKeyBanner() {
+  const key = getApiKey();
+  if (key) {
+    document.getElementById('apikey-input').value = key;
+    document.getElementById('apikey-status').innerHTML =
+      '<span style="color:var(--green)">✅ API key kayıtlı</span>';
+    document.getElementById('apikey-banner').style.background = 'rgba(29,185,84,0.12)';
+    document.getElementById('apikey-banner').style.borderColor = 'rgba(29,185,84,0.4)';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  LYRICS & SENTIMENT
+// ══════════════════════════════════════════════════════
+
+function renderLyricsPicker(tracks) {
+  const el = document.getElementById('lyrics-track-list');
+  if (!el || !tracks.length) return;
+  el.innerHTML = tracks.slice(0, 12).map((t, i) => {
+    const img = t.album?.images?.[2]?.url || '';
+    return `
+      <button class="lyrics-pick-btn" onclick="analyzeLyrics(${i})" id="pick-${i}">
+        <div class="track-art" style="width:40px;height:40px;flex-shrink:0">
+          ${img ? `<img src="${img}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:6px">` : '🎵'}
+        </div>
+        <div class="lyrics-pick-info">
+          <div class="lyrics-pick-name">${t.name}</div>
+          <div class="lyrics-pick-artist">${t.artists?.map(a => a.name).join(', ')}</div>
+        </div>
+      </button>`;
+  }).join('');
+}
+
+async function analyzeLyrics(trackIdx) {
+  const data = cachedData[currentTimeRange];
+  if (!data) return;
+  const track = data.tracks[trackIdx];
+  if (!track) return;
+
+  // Show loading state on button
+  const btn = document.getElementById('pick-' + trackIdx);
+  if (btn) btn.classList.add('loading-state');
+
+  const artist = track.artists[0].name;
+  const title = track.name;
+
+  // Show result section
+  document.getElementById('lyrics-result').style.display = 'block';
+  document.getElementById('lyrics-panel-title').textContent = `📝 ${title} — ${artist}`;
+  document.getElementById('lyrics-text').innerHTML = '<div class="loading"><div class="spinner"></div><span>Sözler aranıyor...</span></div>';
+  document.getElementById('word-freq-chart').innerHTML = '';
+  document.getElementById('sentiment-result').innerHTML = '<div class="loading"><div class="spinner"></div><span>Bekleniyor...</span></div>';
+
+  // Scroll to result
+  document.getElementById('lyrics-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Fetch lyrics
+  let lyrics = null;
+  try {
+    const cleanArtist = encodeURIComponent(artist.replace(/[^\w\s]/gi, '').trim());
+    const cleanTitle = encodeURIComponent(title.replace(/\(.*?\)/g, '').replace(/[^\w\s]/gi, '').trim());
+    const res = await fetch(`https://api.lyrics.ovh/v1/${cleanArtist}/${cleanTitle}`);
+    const data2 = await res.json();
+    lyrics = data2.lyrics || null;
+  } catch(e) {
+    lyrics = null;
+  }
+
+  if (btn) btn.classList.remove('loading-state');
+
+  if (!lyrics) {
+    document.getElementById('lyrics-text').innerHTML =
+      '<div style="color:var(--muted);font-style:italic;padding:1rem">Şarkı sözleri bulunamadı. Sanatçı/şarkı adı farklı kayıtlı olabilir.</div>';
+    document.getElementById('sentiment-result').innerHTML =
+      '<div class="sentiment-error">Söz bulunamadığı için analiz yapılamıyor.</div>';
+    document.getElementById('word-freq-chart').innerHTML =
+      '<div style="color:var(--muted);font-size:0.85rem">Veri yok</div>';
+    return;
+  }
+
+  // Display lyrics
+  document.getElementById('lyrics-text').textContent = lyrics;
+
+  // Word frequency
+  renderWordFrequency(lyrics);
+
+  // Claude sentiment analysis
+  await runSentimentAnalysis(lyrics, title, artist);
+}
+
+function renderWordFrequency(lyrics) {
+  const stopWords = new Set([
+    'the','a','an','and','or','but','in','on','at','to','for','of','with',
+    'is','are','was','were','be','been','being','have','has','had','do','does','did',
+    'will','would','could','should','may','might','shall','can','need',
+    'i','you','he','she','it','we','they','me','him','her','us','them',
+    'my','your','his','its','our','their','this','that','these','those',
+    'what','which','who','when','where','how','why','all','just','more',
+    'so','if','as','up','out','not','no','oh','yeah','know','like','get',
+    'got','let','say','go','come','im','dont','ive','ill','id','youre',
+    'thats','its','its','cause','cuz','bout','em','da','na','la','ay',
+    'yeah','oh','ooh','ah','hey','whoa','baby','love','feel','wanna','gonna'
+  ]);
+
+  const words = lyrics.toLowerCase()
+    .replace(/[^a-züğışöçÜĞİŞÖÇa-z\s]/gi, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !stopWords.has(w));
+
+  const freq = {};
+  words.forEach(w => freq[w] = (freq[w] || 0) + 1);
+
+  const sorted = Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12);
+
+  if (!sorted.length) {
+    document.getElementById('word-freq-chart').innerHTML =
+      '<div style="color:var(--muted);font-size:0.85rem">Kelime bulunamadı</div>';
+    return;
+  }
+
+  const maxCount = sorted[0][1];
+  document.getElementById('word-freq-chart').innerHTML = sorted.map(([word, count]) => `
+    <div class="word-freq-item">
+      <div class="word-freq-label">${word}</div>
+      <div class="word-freq-bar">
+        <div class="word-freq-fill" style="width:${Math.round(count/maxCount*100)}%">
+          <span class="word-freq-count">${count}x</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function runSentimentAnalysis(lyrics, title, artist) {
+  const sentimentEl = document.getElementById('sentiment-result');
+  sentimentEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>Claude analiz ediyor...</span></div>';
+
+  try {
+    const prompt = `Aşağıdaki şarkı sözlerini analiz et. "${title}" - ${artist}
+
+SÖZLER:
+${lyrics.slice(0, 2000)}
+
+Şu formatta JSON döndür (başka hiçbir şey yazma):
+{
+  "emoji": "(tek emoji)",
+  "sentiment": "(Pozitif / Negatif / Nötr / Karışık)",
+  "score": (0-100 arası pozitiflik puanı),
+  "dimensions": {
+    "mutluluk": (0-100),
+    "melankolik": (0-100),
+    "agresif": (0-100),
+    "romantik": (0-100),
+    "umutlu": (0-100)
+  },
+  "ozet": "(2-3 cümle Türkçe özet: şarkının ana teması, duygusal tonu ve öne çıkan mesajı)",
+  "anahtar_temalar": ["tema1", "tema2", "tema3"]
+}`;
+
+    const res = await fetch('/api/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(clean);
+
+    const dims = result.dimensions;
+    const dimColors = {
+      mutluluk: '#ffd93d', melankolik: '#6bcff6',
+      agresif: '#ff6b6b', romantik: '#ff9ff3', umutlu: '#1DB954'
+    };
+
+    sentimentEl.innerHTML = `
+      <div class="sentiment-result-inner">
+        <div class="sentiment-score-wrap">
+          <div class="sentiment-emoji">${result.emoji}</div>
+          <div class="sentiment-label">${result.sentiment}</div>
+          <div class="sentiment-score">Pozitiflik: ${result.score}/100</div>
+        </div>
+        <div class="sentiment-bars">
+          ${Object.entries(dims).map(([k, v]) => `
+            <div>
+              <div class="sentiment-dim-label">
+                <span style="color:var(--muted);text-transform:capitalize">${k}</span>
+                <span>${v}</span>
+              </div>
+              <div class="mood-bar">
+                <div class="mood-bar-fill" style="width:${v}%;background:${dimColors[k]||'#1DB954'}"></div>
+              </div>
+            </div>`).join('')}
+          <div style="margin-top:0.8rem">
+            ${(result.anahtar_temalar||[]).map(t =>
+              `<span class="genre-tag big" style="margin:0.2rem">${t}</span>`
+            ).join('')}
+          </div>
+        </div>
+        <div class="sentiment-analysis-text">${result.ozet}</div>
+      </div>`;
+
+  } catch(err) {
+    console.error('Sentiment error:', err);
+    sentimentEl.innerHTML = `<div class="sentiment-error">
+      Claude API hatası. Uygulama claude.ai üzerinden açıldığında otomatik çalışır. Hata: ${err.message}
+    </div>`;
+  }
+}
+
+</script>
+</body>
+</html>
