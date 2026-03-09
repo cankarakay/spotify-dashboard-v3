@@ -1689,55 +1689,27 @@ async function analyzeLyrics(trackIdx) {
   const track = data.tracks[trackIdx];
   if (!track) return;
 
-  // Show loading state on button
   const btn = document.getElementById('pick-' + trackIdx);
   if (btn) btn.classList.add('loading-state');
 
   const artist = track.artists[0].name;
   const title = track.name;
+  const cleanTitle = title.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '')
+    .replace(/- ?(remaster|live|edition|version|remix|mix|mono|stereo|bonus).*/gi, '').trim();
 
-  // Show result section
   document.getElementById('lyrics-result').style.display = 'block';
-  document.getElementById('lyrics-panel-title').textContent = `📝 ${title} — ${artist}`;
-  document.getElementById('lyrics-text').innerHTML = '<div class="loading"><div class="spinner"></div><span>Sözler aranıyor...</span></div>';
-  document.getElementById('word-freq-chart').innerHTML = '';
-  document.getElementById('sentiment-result').innerHTML = '<div class="loading"><div class="spinner"></div><span>Bekleniyor...</span></div>';
-
-  // Scroll to result
+  document.getElementById('lyrics-panel-title').textContent = `🎵 ${cleanTitle} — ${artist}`;
+  document.getElementById('lyrics-text').innerHTML =
+    '<div style="color:var(--muted);font-style:italic;padding:0.5rem 0">Claude şarkı bilgisini kullanarak analiz yapıyor...</div>';
+  document.getElementById('word-freq-chart').innerHTML =
+    '<div style="color:var(--muted);font-size:0.82rem;padding:0.5rem 0">Analiz tamamlanınca kelimeler burada görünür.</div>';
+  document.getElementById('sentiment-result').innerHTML =
+    '<div class="loading"><div class="spinner"></div><span>Analiz ediliyor...</span></div>';
   document.getElementById('lyrics-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-  // Fetch lyrics
-  let lyrics = null;
-  try {
-    const cleanArtist = artist.replace(/[^\w\s]/gi, '').trim();
-    const cleanTitle = title.replace(/\(.*?\)/g, '').replace(/[^\w\s]/gi, '').trim();
-    const res = await fetch(`/api/lyrics?artist=${encodeURIComponent(cleanArtist)}&title=${encodeURIComponent(cleanTitle)}`);
-    const data2 = await res.json();
-    lyrics = data2.lyrics || null;
-  } catch(e) {
-    lyrics = null;
-  }
 
   if (btn) btn.classList.remove('loading-state');
 
-  if (!lyrics) {
-    document.getElementById('lyrics-text').innerHTML =
-      '<div style="color:var(--muted);font-style:italic;padding:1rem">Şarkı sözleri bulunamadı. Sanatçı/şarkı adı farklı kayıtlı olabilir.</div>';
-    document.getElementById('sentiment-result').innerHTML =
-      '<div class="sentiment-error">Söz bulunamadığı için analiz yapılamıyor.</div>';
-    document.getElementById('word-freq-chart').innerHTML =
-      '<div style="color:var(--muted);font-size:0.85rem">Veri yok</div>';
-    return;
-  }
-
-  // Display lyrics
-  document.getElementById('lyrics-text').textContent = lyrics;
-
-  // Word frequency
-  renderWordFrequency(lyrics);
-
-  // Claude sentiment analysis
-  await runSentimentAnalysis(lyrics, title, artist);
+  await runSentimentAnalysis(null, cleanTitle, artist);
 }
 
 function renderWordFrequency(lyrics) {
@@ -1789,12 +1761,9 @@ async function runSentimentAnalysis(lyrics, title, artist) {
   sentimentEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>Claude analiz ediyor...</span></div>';
 
   try {
-    const prompt = `Aşağıdaki şarkı sözlerini analiz et. "${title}" - ${artist}
+    const prompt = `"${title}" by ${artist} şarkısını analiz et. Şarkının bilinen teması, duygusal tonu ve mesajını kullanarak analiz yap.
 
-SÖZLER:
-${lyrics.slice(0, 2000)}
-
-Şu formatta JSON döndür (başka hiçbir şey yazma):
+Şu formatta JSON döndür, başka hiçbir şey yazma:
 {
   "emoji": "(tek emoji)",
   "sentiment": "(Pozitif / Negatif / Nötr / Karışık)",
